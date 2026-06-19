@@ -1,0 +1,337 @@
+import { useEffect, useState } from "react";
+import { Link, Route, Routes, useNavigate, useParams } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
+import {
+  getCurrentUser,
+  getExercise,
+  getHint,
+  getProgressSummary,
+  getSolution,
+  getTopic,
+  getTopics,
+  submitExercise,
+  updateUserLevel,
+} from "./api";
+import { Sidebar } from "./components/Sidebar";
+import type {
+  ExerciseDetail,
+  ProgressSummary,
+  SubmitCodeResponse,
+  TopicDetail,
+  TopicSummary,
+  User,
+  UserLevel,
+} from "./types";
+import { DIFFICULTY_LABELS } from "./types";
+
+function HomePage({ topics }: { topics: TopicSummary[] }) {
+  const available = topics.filter((topic) => topic.available && topic.exercise_count > 0);
+  const first = available[0];
+
+  return (
+    <div>
+      <h1 className="page-title">Python Refresh Trainer</h1>
+      <p className="page-subtitle">
+        Тренажёр для повторения встроенных возможностей Python. Выберите тему слева или начните с первой
+        доступной.
+      </p>
+      {first ? (
+        <div className="card">
+          <Link to={`/topics/${first.slug}`} style={{ color: "var(--accent)" }}>
+            Начать с темы «{first.title}»
+          </Link>
+        </div>
+      ) : (
+        <div className="empty-state">Нет доступных тем для текущего уровня.</div>
+      )}
+    </div>
+  );
+}
+
+function TopicPage({ slug, onProgressChange }: { slug: string; onProgressChange: () => void }) {
+  const [topic, setTopic] = useState<TopicDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setError(null);
+    getTopic(slug)
+      .then((data) => {
+        if (!cancelled) setTopic(data);
+      })
+      .catch((err: Error) => {
+        if (!cancelled) setError(err.message);
+      });
+    onProgressChange();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, onProgressChange]);
+
+  if (error) {
+    return <div className="error-box">{error}</div>;
+  }
+
+  if (!topic) {
+    return <div className="empty-state">Загрузка темы...</div>;
+  }
+
+  return (
+    <div>
+      <h1 className="page-title">{topic.title}</h1>
+      <div className="card markdown-body">
+        <ReactMarkdown>{topic.theory_md}</ReactMarkdown>
+      </div>
+
+      <div className="card">
+        <h2>Задания</h2>
+        {topic.exercises.length === 0 ? (
+          <div className="empty-state">Задания для этой темы скоро появятся.</div>
+        ) : (
+          <ul className="exercise-list">
+            {topic.exercises.map((exercise) => (
+              <li key={exercise.id} className="exercise-item">
+                <div>
+                  <Link to={`/exercises/${exercise.id}`} style={{ color: "var(--accent)" }}>
+                    {exercise.title}
+                  </Link>
+                  <div className="topic-meta">
+                    {DIFFICULTY_LABELS[exercise.difficulty]}
+                    {exercise.solved ? " · решено" : ""}
+                  </div>
+                </div>
+                {exercise.solved && <span className="badge success">✓</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ExercisePage({
+  exerciseId,
+  onProgressChange,
+}: {
+  exerciseId: number;
+  onProgressChange: () => void;
+}) {
+  const [exercise, setExercise] = useState<ExerciseDetail | null>(null);
+  const [code, setCode] = useState("");
+  const [result, setResult] = useState<SubmitCodeResponse | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
+  const [solution, setSolution] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setError(null);
+    setResult(null);
+    setHint(null);
+    setSolution(null);
+
+    getExercise(exerciseId)
+      .then((data) => {
+        if (!cancelled) {
+          setExercise(data);
+          setCode(data.last_code ?? data.starter_code);
+        }
+      })
+      .catch((err: Error) => {
+        if (!cancelled) setError(err.message);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [exerciseId]);
+
+  async function handleSubmit() {
+    if (!exercise) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await submitExercise(exercise.id, code);
+      setResult(response);
+      if (response.success) {
+        onProgressChange();
+        setExercise({ ...exercise, solved: true });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка проверки");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleHint() {
+    if (!exercise) return;
+    try {
+      const response = await getHint(exercise.id);
+      setHint(response.hint);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось получить подсказку");
+    }
+  }
+
+  async function handleSolution() {
+    if (!exercise) return;
+    try {
+      const response = await getSolution(exercise.id);
+      setSolution(response.solution);
+      setCode(response.solution);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось получить решение");
+    }
+  }
+
+  if (error && !exercise) {
+    return <div className="error-box">{error}</div>;
+  }
+
+  if (!exercise) {
+    return <div className="empty-state">Загрузка задания...</div>;
+  }
+
+  return (
+    <div>
+      <Link to={`/topics/${exercise.topic_slug}`} className="back-link">
+        ← {exercise.topic_title}
+      </Link>
+      <h1 className="page-title">{exercise.title}</h1>
+      <p>{exercise.description}</p>
+      <p className="muted">
+        Функция: <code>{exercise.function_name}</code> · {DIFFICULTY_LABELS[exercise.difficulty]}
+        {exercise.solved ? " · решено" : ""}
+      </p>
+
+      <textarea
+        className="code-editor"
+        value={code}
+        onChange={(event) => setCode(event.target.value)}
+        spellCheck={false}
+      />
+
+      <div className="actions">
+        <button type="button" onClick={handleSubmit} disabled={loading}>
+          {loading ? "Проверка..." : "Проверить"}
+        </button>
+        <button type="button" className="secondary" onClick={handleHint}>
+          Подсказка
+        </button>
+        <button type="button" className="secondary" onClick={handleSolution}>
+          Показать решение
+        </button>
+      </div>
+
+      {hint && <div className="hint-box">{hint}</div>}
+      {solution && (
+        <div className="card">
+          <strong>Решение загружено в редактор</strong>
+        </div>
+      )}
+      {error && <div className="error-box">{error}</div>}
+
+      {result && (
+        <div className="card">
+          <h2>{result.success ? "Все тесты пройдены" : "Есть ошибки"}</h2>
+          {result.error && <div className="error-box">{result.error}</div>}
+          {result.stderr && <div className="muted">stderr: {result.stderr}</div>}
+          <div className="test-results">
+            {result.tests.map((test) => (
+              <div key={test.index} className={`test-result ${test.passed ? "pass" : "fail"}`}>
+                Тест {test.index + 1}: {test.message}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function App() {
+  const navigate = useNavigate();
+  const [topics, setTopics] = useState<TopicSummary[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [progress, setProgress] = useState<ProgressSummary | null>(null);
+  const [menuOpen, setMenuOpen] = useState(true);
+  const [loadingLevel, setLoadingLevel] = useState(false);
+  const [bootError, setBootError] = useState<string | null>(null);
+
+  async function refreshDashboard() {
+    const [topicsData, userData, progressData] = await Promise.all([
+      getTopics(),
+      getCurrentUser(),
+      getProgressSummary(),
+    ]);
+    setTopics(topicsData);
+    setUser(userData);
+    setProgress(progressData);
+  }
+
+  useEffect(() => {
+    refreshDashboard().catch((err: Error) => setBootError(err.message));
+  }, []);
+
+  async function handleLevelChange(level: UserLevel) {
+    setLoadingLevel(true);
+    try {
+      const updated = await updateUserLevel(level);
+      setUser(updated);
+      await refreshDashboard();
+      navigate("/");
+    } catch (err) {
+      setBootError(err instanceof Error ? err.message : "Не удалось сменить уровень");
+    } finally {
+      setLoadingLevel(false);
+    }
+  }
+
+  if (bootError) {
+    return <div className="error-box">{bootError}</div>;
+  }
+
+  return (
+    <div className="app-shell">
+      <Sidebar
+        topics={topics}
+        progress={progress}
+        user={user}
+        menuOpen={menuOpen}
+        onToggleMenu={() => setMenuOpen((value) => !value)}
+        onLevelChange={handleLevelChange}
+        loadingLevel={loadingLevel}
+      />
+      <main className="main-content">
+        <Routes>
+          <Route path="/" element={<HomePage topics={topics} />} />
+          <Route
+            path="/topics/:slug"
+            element={
+              <TopicRoute onProgressChange={() => refreshDashboard().catch(() => undefined)} />
+            }
+          />
+          <Route
+            path="/exercises/:id"
+            element={
+              <ExerciseRoute onProgressChange={() => refreshDashboard().catch(() => undefined)} />
+            }
+          />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
+function TopicRoute({ onProgressChange }: { onProgressChange: () => void }) {
+  const { slug = "" } = useParams();
+  return <TopicPage slug={slug} onProgressChange={onProgressChange} />;
+}
+
+function ExerciseRoute({ onProgressChange }: { onProgressChange: () => void }) {
+  const { id = "0" } = useParams();
+  return <ExercisePage exerciseId={Number(id)} onProgressChange={onProgressChange} />;
+}
