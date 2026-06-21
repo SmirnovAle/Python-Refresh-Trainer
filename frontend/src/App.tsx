@@ -121,7 +121,9 @@ function ExercisePage({
   const [code, setCode] = useState("");
   const [result, setResult] = useState<SubmitCodeResponse | null>(null);
   const [hint, setHint] = useState<string | null>(null);
-  const [solution, setSolution] = useState<string | null>(null);
+  const [solutionVisible, setSolutionVisible] = useState(false);
+  const [solutionCode, setSolutionCode] = useState<string | null>(null);
+  const [solutionExplanation, setSolutionExplanation] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -130,7 +132,9 @@ function ExercisePage({
     setError(null);
     setResult(null);
     setHint(null);
-    setSolution(null);
+    setSolutionVisible(false);
+    setSolutionCode(null);
+    setSolutionExplanation(null);
 
     getExercise(exerciseId)
       .then((data) => {
@@ -180,8 +184,9 @@ function ExercisePage({
     if (!exercise) return;
     try {
       const response = await getSolution(exercise.id);
-      setSolution(response.solution);
-      setCode(response.solution);
+      setSolutionCode(response.solution);
+      setSolutionExplanation(response.explanation);
+      setSolutionVisible(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось получить решение");
     }
@@ -207,12 +212,30 @@ function ExercisePage({
         {exercise.solved ? " · решено" : ""}
       </p>
 
-      <textarea
-        className="code-editor"
-        value={code}
-        onChange={(event) => setCode(event.target.value)}
-        spellCheck={false}
-      />
+      <div className={`editors-grid ${solutionVisible ? "with-solution" : ""}`}>
+        <div className="editor-pane">
+          <div className="editor-label">Ваш код</div>
+          <textarea
+            className="code-editor"
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            spellCheck={false}
+          />
+        </div>
+
+        {solutionVisible && solutionCode && (
+          <div className="editor-pane solution-pane">
+            <div className="editor-label">Эталонное решение</div>
+            <pre className="code-readonly">{solutionCode}</pre>
+            {solutionExplanation && (
+              <div className="solution-explanation markdown-body">
+                <h3>Разбор инструментов</h3>
+                <ReactMarkdown>{solutionExplanation}</ReactMarkdown>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="actions">
         <button type="button" onClick={handleSubmit} disabled={loading}>
@@ -222,27 +245,36 @@ function ExercisePage({
           Подсказка
         </button>
         <button type="button" className="secondary" onClick={handleSolution}>
-          Показать решение
+          {solutionVisible ? "Обновить решение" : "Показать решение"}
         </button>
+        {solutionVisible && (
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setSolutionVisible(false)}
+          >
+            Скрыть решение
+          </button>
+        )}
       </div>
 
       {hint && <div className="hint-box">{hint}</div>}
-      {solution && (
-        <div className="card">
-          <strong>Решение загружено в редактор</strong>
-        </div>
-      )}
       {error && <div className="error-box">{error}</div>}
 
       {result && (
         <div className="card">
-          <h2>{result.success ? "Все тесты пройдены" : "Есть ошибки"}</h2>
+          <h2>{result.success ? "Все проверки пройдены" : "Есть ошибки"}</h2>
+          <p className="muted">
+            Автопроверки вызывают вашу функцию с разными входными данными и сравнивают результат с
+            ожидаемым.
+          </p>
           {result.error && <div className="error-box">{result.error}</div>}
           {result.stderr && <div className="muted">stderr: {result.stderr}</div>}
           <div className="test-results">
             {result.tests.map((test) => (
               <div key={test.index} className={`test-result ${test.passed ? "pass" : "fail"}`}>
-                Тест {test.index + 1}: {test.message}
+                <strong>Проверка {test.index + 1}:</strong>{" "}
+                {test.passed ? `пройдена — ${test.message}` : test.message}
               </div>
             ))}
           </div>

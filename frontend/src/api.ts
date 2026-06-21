@@ -66,6 +66,6 @@ export function getHint(id: number): Promise<{ hint: string }> {
   return request<{ hint: string }>(`/exercises/${id}/hint`);
 }
 
-export function getSolution(id: number): Promise<{ solution: string }> {
-  return request<{ solution: string }>(`/exercises/${id}/solution`);
+export function getSolution(id: number): Promise<{ solution: string; explanation: string }> {
+  return request<{ solution: string; explanation: string }>(`/exercises/${id}/solution`);
 }

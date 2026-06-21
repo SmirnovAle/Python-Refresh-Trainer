@@ -59,6 +59,7 @@ class Exercise(Base):
     starter_code: Mapped[str] = mapped_column(Text, nullable=False)
     hint: Mapped[str] = mapped_column(Text, nullable=False)
     solution: Mapped[str] = mapped_column(Text, nullable=False)
+    solution_explanation: Mapped[str] = mapped_column(Text, nullable=False, default="")
     function_name: Mapped[str] = mapped_column(String(100), nullable=False)
     tests_json: Mapped[str] = mapped_column(Text, nullable=False)
     difficulty: Mapped[ExerciseDifficulty] = mapped_column(Enum(ExerciseDifficulty), default=ExerciseDifficulty.EASY)

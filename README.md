@@ -39,9 +39,7 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 
 ## MVP контент
 
-Полные задания: strings, lists, dictionaries, comprehensions.
-
-Остальные темы — теория-заглушка, задания позже.
+13 тем, **39 заданий** с теорией, подсказками, эталонными решениями и разбором инструментов.
 
 ## API
 
@@ -57,25 +55,80 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 - `GET /api/progress/summary`
 - `POST /api/ai/explain` — заглушка (501)
 
-## Деплой на VPS с nginx
+## Деплой на VPS
 
-1. Сгенерировать `nginx/.htpasswd` и запустить с prod-override:
+Приложение слушает **только localhost:8080**. Снаружи — ваш nginx + SSL.
+
+### 1. Подготовка VPS (один раз)
 
 ```bash
+# Docker
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+# перелогиньтесь
+
+# Клон репозитория
+sudo mkdir -p /opt
+sudo git clone https://github.com/SmirnovAle/Python-Refresh-Trainer.git /opt/python-refresh-trainer
+sudo chown -R $USER:$USER /opt/python-refresh-trainer
+cd /opt/python-refresh-trainer
+
+# Basic Auth (до пользовательских аккаунтов)
+docker run --rm httpd:2.4-alpine htpasswd -nbB admin 'ВАШ_ПАРОЛЬ' > nginx/.htpasswd
+chmod 600 nginx/.htpasswd
+```
+
+### 2. Запуск приложения
+
+```bash
+cd /opt/python-refresh-trainer
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+curl -u admin:ВАШ_ПАРОЛЬ http://127.0.0.1:8080/api/health
 ```
 
-2. Проксировать домен через внешний nginx:
+Или скрипт:
 
-```nginx
-location / {
-    proxy_pass http://127.0.0.1:8080;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-}
+```bash
+chmod +x deploy/vps/deploy.sh
+APP_DIR=/opt/python-refresh-trainer ./deploy/vps/deploy.sh
 ```
 
-3. SSL через certbot.
+### 3. Внешний nginx + SSL
+
+```bash
+# Замените trainer.example.com на ваш домен в deploy/vps/nginx-site.conf
+sudo cp deploy/vps/nginx-site.conf /etc/nginx/sites-available/python-trainer
+sudo ln -sf /etc/nginx/sites-available/python-trainer /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+
+sudo certbot --nginx -d trainer.example.com
+```
+
+DNS: A-запись домена → IP VPS.
+
+### 4. Firewall
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 'Nginx Full'
+sudo ufw enable
+# 8080 наружу НЕ открываем — доступ только через nginx
+```
+
+### 5. Обновление
+
+```bash
+cd /opt/python-refresh-trainer
+./deploy/vps/update.sh
+```
+
+### Схема
+
+```
+Интернет → nginx:443 (SSL) → 127.0.0.1:8080 (docker frontend + Basic Auth) → backend:8000
+```
+
+После реализации auth в приложении уберите `docker-compose.prod.yml` и Basic Auth из `nginx/nginx.prod.conf`.
 
 ## Локальная разработка без Docker
 

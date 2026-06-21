@@ -118,4 +118,7 @@ def get_solution(
     if not is_level_available(user.level, exercise.min_user_level):
         raise HTTPException(status_code=403, detail="Задание недоступно на вашем уровне")
 
-    return SolutionResponse(solution=exercise.solution)
+    return SolutionResponse(
+        solution=exercise.solution,
+        explanation=exercise.solution_explanation,
+    )

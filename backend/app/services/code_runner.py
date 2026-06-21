@@ -48,7 +48,7 @@ def _validate_ast(source: str) -> None:
 
 
 def _build_runner_script(user_code: str, function_name: str, tests: list[dict]) -> str:
-    tests_literal = json.dumps(tests, ensure_ascii=False)
+    tests_json = json.dumps(json.dumps(tests, ensure_ascii=False))
     return textwrap.dedent(
         f"""
         import json
@@ -68,7 +68,7 @@ def _build_runner_script(user_code: str, function_name: str, tests: list[dict]) 
             print(json.dumps({{"error": "Функция '{function_name}' не найдена"}}))
             raise SystemExit(0)
 
-        tests = {tests_literal}
+        tests = json.loads({tests_json})
         results = []
         stdout_parts = []
 
@@ -82,7 +82,11 @@ def _build_runner_script(user_code: str, function_name: str, tests: list[dict]) 
                     passed = actual == set(expected)
                 else:
                     passed = actual == expected
-                message = "OK" if passed else f"Ожидалось {{expected!r}}, получено {{actual!r}}"
+                message = (
+                    f"вход {{args!r}} → {{actual!r}}"
+                    if passed
+                    else f"вход {{args!r}}: ожидалось {{expected!r}}, получено {{actual!r}}"
+                )
                 results.append({{"index": index, "passed": passed, "message": message}})
             except Exception as exc:
                 results.append({{"index": index, "passed": False, "message": f"Исключение: {{type(exc).__name__}}: {{exc}}"}})

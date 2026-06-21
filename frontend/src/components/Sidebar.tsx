@@ -49,9 +49,9 @@ export function Sidebar({
 
       {progress && (
         <div className="progress-card">
-          <div>Прогресс: {progress.percent}%</div>
+          <div>Общий прогресс: {progress.percent}%</div>
           <div className="muted">
-            {progress.solved_count} / {progress.total_available} заданий
+            {progress.solved_count} / {progress.total_available} заданий по всем темам
           </div>
           <div className="progress-bar">
             <span style={{ width: `${progress.percent}%` }} />
@@ -70,9 +70,11 @@ export function Sidebar({
               >
                 <div>{topic.title}</div>
                 <div className="topic-meta">
-                  {topic.available
-                    ? `${topic.solved_count}/${topic.exercise_count} решено`
-                    : "Недоступно на вашем уровне"}
+                  {!topic.available
+                    ? "Недоступно на вашем уровне"
+                    : topic.exercise_count === 0
+                      ? "Заданий пока нет"
+                      : `${topic.solved_count}/${topic.exercise_count} решено`}
                 </div>
               </Link>
             </li>

@@ -132,6 +132,7 @@ class HintResponse(BaseModel):
 
 class SolutionResponse(BaseModel):
     solution: str
+    explanation: str
 
 
 class AiExplainRequest(BaseModel):

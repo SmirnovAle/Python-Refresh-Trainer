@@ -5,9 +5,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, SessionLocal, engine
+from app.migrations import run_migrations
 from app.routers import ai, exercises, progress, topics, users
 from app.schemas import HealthResponse
-from app.seed import seed_database
+from app.seed import seed_database, sync_topic_content
 
 app = FastAPI(title="Python Refresh Trainer", version="0.1.0")
 
@@ -31,10 +32,12 @@ def on_startup() -> None:
     data_dir = Path("./data")
     data_dir.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
+    run_migrations()
 
     db = SessionLocal()
     try:
         seed_database(db)
+        sync_topic_content(db)
     finally:
         db.close()
 
