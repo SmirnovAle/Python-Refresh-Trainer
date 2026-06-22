@@ -14,7 +14,7 @@
 ### Локально (без пароля)
 
 ```bash
-docker-compose up --build
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
 
 Открыть: http://localhost:8080
