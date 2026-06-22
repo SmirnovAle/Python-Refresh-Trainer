@@ -25,9 +25,11 @@ cd "${APP_DIR}"
 
 if [ ! -f nginx/.htpasswd ]; then
   echo "Создайте nginx/.htpasswd:"
-  echo "  docker run --rm httpd:2.4-alpine htpasswd -nbB admin 'YOUR_PASSWORD' > nginx/.htpasswd"
+  echo "  htpasswd -nbB admin 'YOUR_PASSWORD' | sudo tee nginx/.htpasswd"
   exit 1
 fi
+
+chmod 644 nginx/.htpasswd 2>/dev/null || sudo chmod 644 nginx/.htpasswd
 
 echo "==> Сборка и запуск контейнеров"
 ${COMPOSE} up --build -d

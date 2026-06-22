@@ -75,7 +75,7 @@ cd /opt/python-refresh-trainer
 
 # Basic Auth (до пользовательских аккаунтов)
 docker run --rm httpd:2.4-alpine htpasswd -nbB admin 'ВАШ_ПАРОЛЬ' > nginx/.htpasswd
-chmod 600 nginx/.htpasswd
+chmod 644 nginx/.htpasswd
 ```
 
 ### 2. Запуск приложения
