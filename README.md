@@ -57,7 +57,7 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 
 ## Деплой на VPS
 
-Приложение слушает **только localhost:8080**. Снаружи — ваш nginx + SSL.
+Приложение на VPS слушает **127.0.0.1:8090** (prod). Локально — `:8080`. Снаружи — nginx + SSL.
 
 ### 1. Подготовка VPS (один раз)
 
@@ -83,7 +83,7 @@ chmod 600 nginx/.htpasswd
 ```bash
 cd /opt/python-refresh-trainer
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
-curl -u admin:ВАШ_ПАРОЛЬ http://127.0.0.1:8080/api/health
+curl -u admin:ВАШ_ПАРОЛЬ http://127.0.0.1:8090/api/health
 ```
 
 Или скрипт:
@@ -112,7 +112,7 @@ DNS: A-запись домена → IP VPS.
 sudo ufw allow OpenSSH
 sudo ufw allow 'Nginx Full'
 sudo ufw enable
-# 8080 наружу НЕ открываем — доступ только через nginx
+# 8090 наружу НЕ открываем — доступ только через nginx
 ```
 
 ### 5. Обновление
@@ -125,7 +125,7 @@ cd /opt/python-refresh-trainer
 ### Схема
 
 ```
-Интернет → nginx:443 (SSL) → 127.0.0.1:8080 (docker frontend + Basic Auth) → backend:8000
+Интернет → nginx:443 (SSL) → 127.0.0.1:8090 (docker frontend + Basic Auth) → backend:8000
 ```
 
 После реализации auth в приложении уберите `docker-compose.prod.yml` и Basic Auth из `nginx/nginx.prod.conf`.

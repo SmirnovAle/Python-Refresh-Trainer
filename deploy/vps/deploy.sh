@@ -34,8 +34,8 @@ ${COMPOSE} up --build -d
 
 echo "==> Проверка"
 sleep 3
-curl -sf -u admin:changeme http://127.0.0.1:8080/api/health >/dev/null \
-  && echo "OK: приложение отвечает на 127.0.0.1:8080" \
+curl -sf http://127.0.0.1:8090/api/health >/dev/null \
+  && echo "OK: приложение отвечает на 127.0.0.1:8090" \
   || echo "WARN: health-check не прошёл — проверьте логи: ${COMPOSE} logs"
 
 echo
