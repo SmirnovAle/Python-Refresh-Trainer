@@ -11,21 +11,37 @@ sudo git reset --hard origin/main
 if [ -f "$ENV_FILE" ]; then
   TRAINER_JWT_SECRET=$(sudo grep '^TRAINER_JWT_SECRET=' "$ENV_FILE" | cut -d= -f2-)
   TRAINER_ADMIN_PASSWORD=$(sudo grep '^TRAINER_ADMIN_PASSWORD=' "$ENV_FILE" | cut -d= -f2-)
+  TRAINER_AI_ENABLED=$(sudo grep '^TRAINER_AI_ENABLED=' "$ENV_FILE" | cut -d= -f2- || true)
+  TRAINER_OPENAI_API_KEY=$(sudo grep '^TRAINER_OPENAI_API_KEY=' "$ENV_FILE" | cut -d= -f2- || true)
+  TRAINER_AI_MODEL=$(sudo grep '^TRAINER_AI_MODEL=' "$ENV_FILE" | cut -d= -f2- || true)
+  TRAINER_AI_BASE_URL=$(sudo grep '^TRAINER_AI_BASE_URL=' "$ENV_FILE" | cut -d= -f2- || true)
 else
   echo "Нет ${ENV_FILE}. Запустите deploy/vps/deploy.sh или создайте файл вручную."
   exit 1
 fi
 
 export TRAINER_CORS_ORIGINS="${TRAINER_CORS_ORIGINS:-https://python-simulator.ai-smirnov.ru}"
+export TRAINER_AI_ENABLED="${TRAINER_AI_ENABLED:-false}"
 
-sudo TRAINER_JWT_SECRET="$TRAINER_JWT_SECRET" \
-  TRAINER_ADMIN_PASSWORD="$TRAINER_ADMIN_PASSWORD" \
-  TRAINER_CORS_ORIGINS="$TRAINER_CORS_ORIGINS" \
-  docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
+DEPLOY_ENV=(
+  "TRAINER_JWT_SECRET=$TRAINER_JWT_SECRET"
+  "TRAINER_ADMIN_PASSWORD=$TRAINER_ADMIN_PASSWORD"
+  "TRAINER_CORS_ORIGINS=$TRAINER_CORS_ORIGINS"
+  "TRAINER_AI_ENABLED=$TRAINER_AI_ENABLED"
+)
 
-sudo TRAINER_JWT_SECRET="$TRAINER_JWT_SECRET" \
-  TRAINER_ADMIN_PASSWORD="$TRAINER_ADMIN_PASSWORD" \
-  TRAINER_CORS_ORIGINS="$TRAINER_CORS_ORIGINS" \
-  docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+if [ -n "${TRAINER_OPENAI_API_KEY:-}" ]; then
+  DEPLOY_ENV+=("TRAINER_OPENAI_API_KEY=$TRAINER_OPENAI_API_KEY")
+fi
+if [ -n "${TRAINER_AI_MODEL:-}" ]; then
+  DEPLOY_ENV+=("TRAINER_AI_MODEL=$TRAINER_AI_MODEL")
+fi
+if [ -n "${TRAINER_AI_BASE_URL:-}" ]; then
+  DEPLOY_ENV+=("TRAINER_AI_BASE_URL=$TRAINER_AI_BASE_URL")
+fi
+
+sudo "${DEPLOY_ENV[@]}" docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
+
+sudo "${DEPLOY_ENV[@]}" docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 sudo docker-compose -f docker-compose.yml -f docker-compose.prod.yml ps

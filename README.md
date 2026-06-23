@@ -182,17 +182,37 @@ npm run dev
 | `TRAINER_COOKIE_SECURE` | `false` |
 | `TRAINER_CORS_ORIGINS` | `http://localhost:8080,http://localhost:5173` |
 | `TRAINER_AI_ENABLED` | `false` |
-| `TRAINER_OPENAI_API_KEY` | — |
-| `TRAINER_AI_MODEL` | `gpt-4o-mini` |
-| `TRAINER_AI_BASE_URL` | `https://api.openai.com/v1` |
-| `TRAINER_AI_TIMEOUT_SECONDS` | `30.0` |
+| `TRAINER_OPENAI_API_KEY` | — (ключ OpenRouter) |
+| `TRAINER_AI_MODEL` | `meta-llama/llama-3.3-70b-instruct:free` |
+| `TRAINER_AI_BASE_URL` | `https://openrouter.ai/api/v1` |
+| `TRAINER_AI_HTTP_REFERER` | `https://python-simulator.ai-smirnov.ru` |
+| `TRAINER_AI_APP_TITLE` | `Python Refresh Trainer` |
+| `TRAINER_AI_TIMEOUT_SECONDS` | `45.0` |
 
-### AI (опционально)
+### AI через OpenRouter (бесплатно)
+
+1. Регистрация: https://openrouter.ai/
+2. **Keys** → Create Key (в аккаунте ключ называется `Python-simulator-key`) → скопировать `sk-or-v1-...`
+3. На VPS добавить в `/opt/python-refresh-trainer/.deploy.env`:
 
 ```bash
-export TRAINER_AI_ENABLED=true
-export TRAINER_OPENAI_API_KEY='sk-...'
-# для совместимых API (OpenRouter, локальный proxy):
-# export TRAINER_AI_BASE_URL='https://openrouter.ai/api/v1'
-# export TRAINER_AI_MODEL='...'
+TRAINER_AI_ENABLED=true
+TRAINER_OPENAI_API_KEY=sk-or-v1-ВАШ_КЛЮЧ
+TRAINER_AI_BASE_URL=https://openrouter.ai/api/v1
+TRAINER_AI_MODEL=meta-llama/llama-3.3-70b-instruct:free
 ```
+
+4. Перезапуск: `./deploy/vps/update.sh`
+
+**Рекомендуемая модель:** `meta-llama/llama-3.3-70b-instruct:free` — нормально объясняет ошибки по-русски, бесплатный tier.
+
+**Альтернативы:**
+
+| Модель | Когда |
+|--------|-------|
+| `google/gemma-3-12b-it:free` | быстрее, чуть проще |
+| `openrouter/free` | авто-выбор любой free-модели |
+
+**Лимиты OpenRouter (free):** 50 запросов/день без пополнения, 20/мин. После $10 credits — 1000/день. Для личного тренажёра хватает.
+
+Проверка: `GET /api/ai/status` → `"configured": true` после деплоя с ключом.

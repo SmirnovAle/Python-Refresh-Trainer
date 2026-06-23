@@ -56,4 +56,5 @@ def ai_status() -> dict[str, bool | str]:
         "enabled": settings.ai_enabled,
         "configured": settings.ai_enabled and bool(settings.openai_api_key),
         "model": settings.ai_model,
+        "provider": "openrouter" if "openrouter.ai" in settings.ai_base_url else "openai-compatible",
     }

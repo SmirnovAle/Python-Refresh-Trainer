@@ -17,9 +17,11 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:8080,http://localhost:5173"
     ai_enabled: bool = False
     openai_api_key: str = ""
-    ai_model: str = "gpt-4o-mini"
-    ai_base_url: str = "https://api.openai.com/v1"
-    ai_timeout_seconds: float = 30.0
+    ai_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+    ai_base_url: str = "https://openrouter.ai/api/v1"
+    ai_http_referer: str = "https://python-simulator.ai-smirnov.ru"
+    ai_app_title: str = "Python Refresh Trainer"
+    ai_timeout_seconds: float = 45.0
 
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

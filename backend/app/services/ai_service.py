@@ -25,7 +25,7 @@ def explain_exercise_failure(
     if not settings.ai_enabled:
         raise AiNotConfiguredError("AI отключён. Задайте TRAINER_AI_ENABLED=true")
     if not settings.openai_api_key:
-        raise AiNotConfiguredError("AI не настроен. Задайте TRAINER_OPENAI_API_KEY")
+        raise AiNotConfiguredError("AI не настроен. Задайте TRAINER_OPENAI_API_KEY (ключ OpenRouter)")
 
     user_lines = [
         f"Задание: {title}",
@@ -64,6 +64,8 @@ def explain_exercise_failure(
     headers = {
         "Authorization": f"Bearer {settings.openai_api_key}",
         "Content-Type": "application/json",
+        "HTTP-Referer": settings.ai_http_referer,
+        "X-Title": settings.ai_app_title,
     }
     body = {
         "model": settings.ai_model,

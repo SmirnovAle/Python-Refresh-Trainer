@@ -15,4 +15,5 @@ services:
       TRAINER_CORS_ORIGINS: ${TRAINER_CORS_ORIGINS:-https://python-simulator.ai-smirnov.ru}
       TRAINER_AI_ENABLED: ${TRAINER_AI_ENABLED:-false}
       TRAINER_OPENAI_API_KEY: ${TRAINER_OPENAI_API_KEY:-}
-      TRAINER_AI_MODEL: ${TRAINER_AI_MODEL:-gpt-4o-mini}
+      TRAINER_AI_BASE_URL: ${TRAINER_AI_BASE_URL:-https://openrouter.ai/api/v1}
+      TRAINER_AI_MODEL: ${TRAINER_AI_MODEL:-meta-llama/llama-3.3-70b-instruct:free}
