@@ -9,25 +9,18 @@
 - Python runner: 3.12, subprocess, timeout 2s
 - Deploy: Docker Compose + nginx
 
-## Быстрый старт
+## Быстрый старт (VPS)
 
-### Локально (без входа)
-
-```bash
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-```
-
-Открыть: http://localhost:8080 — auth отключён (`TRAINER_AUTH_ENABLED=false`).
-
-### VPS (вход в приложении)
+Сайт: https://python-simulator.ai-smirnov.ru
 
 ```bash
-export TRAINER_JWT_SECRET=$(openssl rand -hex 32)
-export TRAINER_ADMIN_PASSWORD='ваш_пароль'
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+cd /opt/python-refresh-trainer
+./deploy/vps/update.sh
 ```
 
-Логин: **admin@local** / пароль из `TRAINER_ADMIN_PASSWORD`. JWT в httpOnly-cookie.
+Логин: **admin@local** / пароль из `/opt/python-refresh-trainer/.deploy.env` (`TRAINER_ADMIN_PASSWORD`).
+
+Первичная установка — раздел [Деплой на VPS](#деплой-на-vps).
 
 ## Уровни пользователя
 
@@ -61,7 +54,7 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 
 ## Деплой на VPS
 
-Приложение на VPS слушает **127.0.0.1:8090** (prod). Локально — `:8080`. Снаружи — nginx + SSL.
+Приложение на VPS слушает **127.0.0.1:8090**. Снаружи — nginx + SSL на домене.
 
 ### 1. Подготовка VPS (один раз)
 
@@ -153,21 +146,9 @@ chmod +x deploy/vps/backup-db.sh
 - **Пароли**: bcrypt, cost factor 12.
 - **CORS**: явный список origin (`TRAINER_CORS_ORIGINS`), `credentials: true` — wildcard `*` не используется.
 
-## Локальная разработка без Docker
-
-```bash
-# backend
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-
-# frontend
-cd frontend
-npm install
-npm run dev
-```
-
 ## Переменные окружения backend
+
+Задаются в `/opt/python-refresh-trainer/.deploy.env`, подхватываются `deploy/vps/update.sh`.
 
 | Переменная | По умолчанию |
 |------------|--------------|
@@ -179,8 +160,8 @@ npm run dev
 | `TRAINER_ADMIN_PASSWORD` | `dev` |
 | `TRAINER_JWT_SECRET` | `dev-insecure-change-me` |
 | `TRAINER_JWT_EXPIRE_HOURS` | `24` |
-| `TRAINER_COOKIE_SECURE` | `false` |
-| `TRAINER_CORS_ORIGINS` | `http://localhost:8080,http://localhost:5173` |
+| `TRAINER_COOKIE_SECURE` | `true` (prod) |
+| `TRAINER_CORS_ORIGINS` | `https://python-simulator.ai-smirnov.ru` |
 | `TRAINER_AI_ENABLED` | `false` |
 | `TRAINER_OPENAI_API_KEY` | — (ключ OpenRouter) |
 | `TRAINER_AI_MODEL` | `meta-llama/llama-3.3-70b-instruct:free` |

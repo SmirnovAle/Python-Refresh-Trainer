@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     jwt_expire_hours: int = 24
     cookie_name: str = "trainer_token"
     cookie_secure: bool = False
-    cors_origins: str = "http://localhost:8080,http://localhost:5173"
+    cors_origins: str = "https://python-simulator.ai-smirnov.ru"
     ai_enabled: bool = False
     openai_api_key: str = ""
     ai_model: str = "meta-llama/llama-3.3-70b-instruct:free"
