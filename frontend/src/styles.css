@@ -384,8 +384,39 @@ button:disabled {
   border: 1px solid rgba(77, 163, 255, 0.35);
 }
 
+.ai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-top: 1rem;
+}
+
+.ai-model-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.ai-model-label code,
+.ai-model-badge {
+  color: var(--accent);
+  font-size: 0.85em;
+}
+
 .ai-box h3 {
   margin-top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.ai-model-badge {
+  font-weight: 500;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  background: rgba(77, 163, 255, 0.15);
+  border: 1px solid rgba(77, 163, 255, 0.3);
 }
 
 .back-link {

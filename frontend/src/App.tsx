@@ -133,6 +133,8 @@ function ExercisePage({
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiAvailable, setAiAvailable] = useState(false);
+  const [aiModel, setAiModel] = useState<string | null>(null);
+  const [aiModelUsed, setAiModelUsed] = useState<string | null>(null);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -146,6 +148,7 @@ function ExercisePage({
     setSolutionCode(null);
     setSolutionExplanation(null);
     setAiExplanation(null);
+    setAiModelUsed(null);
 
     getExercise(exerciseId)
       .then((data) => {
@@ -160,7 +163,10 @@ function ExercisePage({
 
     getAiStatus()
       .then((status) => {
-        if (!cancelled) setAiAvailable(status.configured);
+        if (!cancelled) {
+          setAiAvailable(status.configured);
+          setAiModel(status.model);
+        }
       })
       .catch(() => {
         if (!cancelled) setAiAvailable(false);
@@ -182,6 +188,7 @@ function ExercisePage({
     setLoading(true);
     setError(null);
     setAiExplanation(null);
+    setAiModelUsed(null);
     try {
       const response = await submitExercise(exercise.id, code);
       setResult(response);
@@ -221,6 +228,7 @@ function ExercisePage({
         failed_tests: result.tests.filter((test) => !test.passed).map((test) => test.message),
       });
       setAiExplanation(response.explanation);
+      setAiModelUsed(response.model);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось получить AI-разбор");
     } finally {
@@ -337,15 +345,25 @@ function ExercisePage({
           {result.error && <div className="error-box">{result.error}</div>}
           {result.stderr && <div className="muted">stderr: {result.stderr}</div>}
           {!result.success && aiAvailable && (
-            <div className="actions" style={{ marginTop: "1rem" }}>
+            <div className="ai-actions">
               <button type="button" className="secondary" onClick={handleExplain} disabled={aiLoading}>
                 {aiLoading ? "AI думает..." : "Объяснить ошибку"}
               </button>
+              {aiModel && (
+                <span className="ai-model-label">
+                  Модель: <code>{aiModelUsed ?? aiModel}</code>
+                </span>
+              )}
             </div>
           )}
           {aiExplanation && (
             <div className="ai-box markdown-body">
-              <h3>AI-разбор</h3>
+              <h3>
+                AI-разбор
+                {(aiModelUsed ?? aiModel) && (
+                  <code className="ai-model-badge">{aiModelUsed ?? aiModel}</code>
+                )}
+              </h3>
               <ReactMarkdown>{aiExplanation}</ReactMarkdown>
             </div>
           )}

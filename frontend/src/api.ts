@@ -94,8 +94,8 @@ export function explainError(payload: {
   error: string | null;
   stderr: string | null;
   failed_tests: string[];
-}): Promise<{ explanation: string }> {
-  return request<{ explanation: string }>("/ai/explain", {
+}): Promise<{ explanation: string; model: string }> {
+  return request<{ explanation: string; model: string }>("/ai/explain", {
     method: "POST",
     body: JSON.stringify(payload),
   });

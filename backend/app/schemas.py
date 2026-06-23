@@ -152,6 +152,7 @@ class AiExplainRequest(BaseModel):
 
 class AiExplainResponse(BaseModel):
     explanation: str
+    model: str
 
 
 class HealthResponse(BaseModel):

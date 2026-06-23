@@ -62,7 +62,7 @@ def explain_exercise_failure(
     error: str | None,
     stderr: str | None,
     failed_tests: list[str],
-) -> str:
+) -> tuple[str, str]:
     if not settings.ai_enabled:
         raise AiNotConfiguredError("AI отключён. Задайте TRAINER_AI_ENABLED=true")
     if not settings.openai_api_key:
@@ -116,13 +116,14 @@ def explain_exercise_failure(
         with httpx.Client(timeout=settings.ai_timeout_seconds) as client:
             for model in models:
                 try:
-                    return _request_explanation(
+                    explanation = _request_explanation(
                         client,
                         url=url,
                         headers=headers,
                         messages=messages,
                         model=model,
                     )
+                    return explanation, model
                 except httpx.HTTPStatusError as exc:
                     last_error = exc
                     if exc.response.status_code not in RETRYABLE_STATUS_CODES:

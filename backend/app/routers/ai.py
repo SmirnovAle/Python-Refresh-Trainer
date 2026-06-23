@@ -32,7 +32,7 @@ def explain_error(
         raise HTTPException(status_code=403, detail="Задание недоступно на вашем уровне")
 
     try:
-        explanation = explain_exercise_failure(
+        explanation, model_used = explain_exercise_failure(
             title=exercise.title,
             description=exercise.description,
             function_name=exercise.function_name,
@@ -47,7 +47,7 @@ def explain_error(
     except AiServiceError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
-    return AiExplainResponse(explanation=explanation)
+    return AiExplainResponse(explanation=explanation, model=model_used)
 
 
 @router.get("/status")
