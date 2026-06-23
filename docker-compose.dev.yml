@@ -2,3 +2,6 @@ services:
   frontend:
     ports:
       - "8080:80"
+  backend:
+    environment:
+      TRAINER_AUTH_ENABLED: "false"

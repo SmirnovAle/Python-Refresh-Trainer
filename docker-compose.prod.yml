@@ -4,8 +4,15 @@ services:
       - "127.0.0.1:8090:80"
     volumes:
       - ./nginx/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
 
   backend:
     environment:
       TRAINER_DATABASE_URL: sqlite:////app/data/trainer.db
+      TRAINER_AUTH_ENABLED: "true"
+      TRAINER_COOKIE_SECURE: "true"
+      TRAINER_JWT_SECRET: ${TRAINER_JWT_SECRET:?set TRAINER_JWT_SECRET}
+      TRAINER_ADMIN_PASSWORD: ${TRAINER_ADMIN_PASSWORD:?set TRAINER_ADMIN_PASSWORD}
+      TRAINER_CORS_ORIGINS: ${TRAINER_CORS_ORIGINS:-https://python-simulator.ai-smirnov.ru}
+      TRAINER_AI_ENABLED: ${TRAINER_AI_ENABLED:-false}
+      TRAINER_OPENAI_API_KEY: ${TRAINER_OPENAI_API_KEY:-}
+      TRAINER_AI_MODEL: ${TRAINER_AI_MODEL:-gpt-4o-mini}

@@ -10,6 +10,7 @@ interface SidebarProps {
   onToggleMenu: () => void;
   onLevelChange: (level: UserLevel) => void;
   loadingLevel: boolean;
+  onLogout: () => void;
 }
 
 export function Sidebar({
@@ -20,6 +21,7 @@ export function Sidebar({
   onToggleMenu,
   onLevelChange,
   loadingLevel,
+  onLogout,
 }: SidebarProps) {
   const location = useLocation();
 
@@ -46,6 +48,10 @@ export function Sidebar({
           </option>
         ))}
       </select>
+
+      <button type="button" className="secondary logout-button" onClick={onLogout}>
+        Выйти
+      </button>
 
       {progress && (
         <div className="progress-card">

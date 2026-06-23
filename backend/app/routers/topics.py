@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Exercise, Topic
-from app.routers.users import resolve_user_id
+from app.dependencies.auth import require_user_id
 from app.schemas import ExerciseSummary, TopicDetail, TopicSummary
 from app.services.progress_service import (
     get_default_user,
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/topics", tags=["topics"])
 
 @router.get("", response_model=list[TopicSummary])
 def list_topics(
-    user_id: int = Depends(resolve_user_id),
+    user_id: int = Depends(require_user_id),
     db: Session = Depends(get_db),
 ) -> list[TopicSummary]:
     user = get_default_user(db, user_id)
@@ -52,7 +52,7 @@ def list_topics(
 @router.get("/{slug}", response_model=TopicDetail)
 def get_topic(
     slug: str,
-    user_id: int = Depends(resolve_user_id),
+    user_id: int = Depends(require_user_id),
     db: Session = Depends(get_db),
 ) -> TopicDetail:
     user = get_default_user(db, user_id)

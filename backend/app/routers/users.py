@@ -1,22 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.database import get_db
-from app.models import Progress, User
-from app.schemas import UserLevel, UserLevelUpdate, UserOut
+from app.dependencies.auth import require_user_id
+from app.models import User
+from app.schemas import UserLevelUpdate, UserOut
 from app.services.progress_service import get_default_user
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-def resolve_user_id(x_user_id: int | None = Header(default=None)) -> int:
-    return x_user_id or settings.default_user_id
-
-
 @router.get("/me", response_model=UserOut)
 def get_current_user(
-    user_id: int = Depends(resolve_user_id),
+    user_id: int = Depends(require_user_id),
     db: Session = Depends(get_db),
 ) -> User:
     try:
@@ -28,7 +24,7 @@ def get_current_user(
 @router.patch("/me/level", response_model=UserOut)
 def update_user_level(
     payload: UserLevelUpdate,
-    user_id: int = Depends(resolve_user_id),
+    user_id: int = Depends(require_user_id),
     db: Session = Depends(get_db),
 ) -> User:
     user = db.get(User, user_id)

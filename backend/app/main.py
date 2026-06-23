@@ -4,22 +4,24 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import settings
 from app.database import Base, SessionLocal, engine
 from app.migrations import run_migrations
-from app.routers import ai, exercises, progress, topics, users
+from app.routers import ai, auth, exercises, progress, topics, users
 from app.schemas import HealthResponse
-from app.seed import seed_database, sync_topic_content
+from app.seed import seed_database, sync_exercise_explanations, sync_topic_content
 
 app = FastAPI(title="Python Refresh Trainer", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origin_list(),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_headers=["Content-Type"],
 )
 
+app.include_router(auth.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(topics.router, prefix="/api")
 app.include_router(exercises.router, prefix="/api")
@@ -38,6 +40,7 @@ def on_startup() -> None:
     try:
         seed_database(db)
         sync_topic_content(db)
+        sync_exercise_explanations(db)
     finally:
         db.close()
 

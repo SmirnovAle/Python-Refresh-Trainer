@@ -4,6 +4,7 @@ export type ExerciseDifficulty = "easy" | "medium" | "hard";
 export interface User {
   id: number;
   name: string;
+  email?: string | null;
   level: UserLevel;
 }
 

@@ -2,7 +2,9 @@ import json
 
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.models import Exercise, ExerciseDifficulty, Topic, User, UserLevel
+from app.services.auth_service import hash_password
 
 SOLUTION_EXPLANATIONS: dict[str, str] = {
     "reverse_text": """**`text[::-1]`** — срез строки с шагом `-1`: символы идут с конца к началу.""",
@@ -55,12 +57,102 @@ SOLUTION_EXPLANATIONS: dict[str, str] = {
     "parse_iso_date": """**`datetime.fromisoformat(text).date()`** — разбор ISO-даты; **`.isoformat()`** обратно в строку.""",
     "add_days_iso": """**`timedelta(days=n)`** — смещение даты; **`date + delta`** даёт новую дату.""",
     "days_between_iso": """Разность двух **`date`** через `-` даёт **`timedelta`**; **`.days`** — число суток.""",
+    "remove_spaces": """**`str.replace(' ', '')`** — удаляет все пробелы из строки.""",
+    "starts_with_vowel": """**`text[0].lower() in 'aeiou'`** — проверка первой буквы на гласную.""",
+    "max_item": """**`max(items)`** — максимум списка; проверка на пустой список перед вызовом.""",
+    "chunk_pairs": """**Срез с шагом 2**: `[items[i:i+2] for i in range(0, len(items), 2)]` — пары подряд.""",
+    "double_values": """**List comprehension**: `[x * 2 for x in items]` — удвоение каждого элемента.""",
+    "count_matches": """**`sum(1 for x in items if x == target)`** — подсчёт совпадений без явного цикла с append.""",
+    "merge_dicts": """**`{**first, **second}`** — объединение; ключи из второго словаря перезаписывают первый.""",
+    "filter_positive": """**`[x for x in numbers if x > 0]`** или **`filter(lambda x: x > 0, numbers)`** — только положительные.""",
+    "map_lengths": """**`map(len, words)`** — применяет `len` к каждому элементу; `list(...)` для списка.""",
+    "all_even": """**`all(x % 2 == 0 for x in numbers)`** — True, если все элементы чётные; пустой список даёт True.""",
+    "sort_words": """**`sorted(words)`** — новый отсортированный список, исходный не меняется.""",
+    "sort_by_length": """**`sorted(words, key=len)`** — сортировка по длине строки.""",
+    "swap_pair": """**Распаковка кортежа**: `a, b = pair; return (b, a)` — обмен двух значений.""",
+    "parse_json_list": """**`json.loads(text)`** — строка JSON в Python-объект; для массива чисел — `sum(...)`.""",
+    "dumps_sorted": """**`json.dumps(data, sort_keys=True)`** — сериализация с сортировкой ключей.""",
+    "json_get_name": """**`json.loads` + `.get('name')`** — безопасное чтение поля из объекта JSON.""",
+    "find_digits": """**`re.findall(r'\\d+', text)`** — все группы цифр в строке.""",
+    "normalize_spaces": """**`re.sub(r'\\s+', ' ', text).strip()`** — схлопывание пробелов.""",
+    "is_valid_word": """**`re.fullmatch(r'[A-Za-z]+', word)`** — проверка, что строка целиком из букв.""",
+    "product_reduce": """**`functools.reduce`** — свёртка списка: `reduce(lambda a, b: a * b, numbers, 1)`.""",
+    "cached_square": """**`@lru_cache`** — кеш результатов функции; повторные вызовы с тем же аргументом мгновенны.""",
+    "sum_reduce": """**`functools.reduce`** с начальным значением 0: `reduce(lambda a, b: a + b, numbers, 0)`.""",
+    "iso_weekday": """**`date.fromisoformat(...).isoweekday()`** — день недели: 1=понедельник, 7=воскресенье.""",
+}
+
+HINT_SIGNATURES: dict[str, str] = {
+    "reverse_text": "text[::-1]",
+    "count_words": "len(text.strip().split())",
+    "to_snake_case": "''.join(...); char.isupper(); char.lower()",
+    "is_palindrome": "''.join(ch.lower() for ch in text if ch.isalnum())",
+    "remove_spaces": "text.replace(' ', '')",
+    "starts_with_vowel": "text[0].lower() in 'aeiou'",
+    "sum_list": "sum(items)",
+    "unique_items": "set(); item not in seen",
+    "flatten": "[item for sub in nested for item in sub]",
+    "max_item": "max(items)",
+    "chunk_pairs": "[items[i:i + 2] for i in range(0, len(items), 2)]",
+    "invert_dict": "{value: key for key, value in data.items()}",
+    "frequency_map": "result.get(char, 0) + 1",
+    "merge_dicts": "{**first, **second}",
+    "even_squares": "[x * x for x in numbers if x % 2 == 0]",
+    "word_lengths": "{word: len(word) for word in words}",
+    "first_letters": "{word[0] for word in words if word}",
+    "sum_range": "for i in range(1, n + 1)",
+    "enumerate_pairs": "enumerate(items)",
+    "zip_merge": "[x + y for x, y in zip(a, b)]",
+    "double_values": "[x * 2 for x in items]",
+    "count_matches": "sum(1 for x in items if x == target)",
+    "unique_sorted": "sorted(set(items))",
+    "common_elements": "sorted(set(a) & set(b))",
+    "symmetric_diff_sorted": "sorted(set(a) ^ set(b))",
+    "greet": 'f"{greeting}, {name}!"',
+    "sum_all": "sum(numbers)",
+    "build_profile": "dict(fields)",
+    "safe_divide": "try: ... except ZeroDivisionError",
+    "parse_int": "try: int(text) except ValueError",
+    "safe_get": "try: items[index] except IndexError",
+    "count_lines": "text.splitlines()",
+    "non_empty_lines": "[line.strip() for line in text.splitlines() if line.strip()]",
+    "parse_key_value": "line.split('=')",
+    "count_with_counter": "Counter(items)",
+    "group_by_first_letter": "defaultdict(list)",
+    "rotate_left": "deque(items); deque.rotate(-n)",
+    "take_first": "islice(iterable, n)",
+    "chain_to_list": "list(chain(a, b))",
+    "pairwise_sums": "pairwise(items)",
+    "path_suffix": "PurePath(path_str).suffix",
+    "path_stem": "PurePath(path_str).stem",
+    "join_posix_path": "PurePosixPath(*parts)",
+    "parse_iso_date": "date.fromisoformat(text).isoformat()",
+    "add_days_iso": "date.fromisoformat(iso_date) + timedelta(days=days)",
+    "days_between_iso": "(date.fromisoformat(end) - date.fromisoformat(start)).days",
+    "iso_weekday": "date.fromisoformat(iso_date).isoweekday()",
+    "filter_positive": "[x for x in numbers if x > 0]",
+    "map_lengths": "list(map(len, words))",
+    "all_even": "all(x % 2 == 0 for x in numbers)",
+    "sort_words": "sorted(words)",
+    "sort_by_length": "sorted(words, key=len)",
+    "swap_pair": "a, b = pair; return (b, a)",
+    "parse_json_list": "sum(json.loads(text))",
+    "dumps_sorted": "json.dumps(data, sort_keys=True)",
+    "json_get_name": "json.loads(text).get('name')",
+    "find_digits": "re.findall(r'\\d+', text)",
+    "normalize_spaces": "re.sub(r'\\s+', ' ', text).strip()",
+    "is_valid_word": "re.fullmatch(r'[A-Za-z]+', word)",
+    "product_reduce": "reduce(lambda a, b: a * b, numbers, 1)",
+    "cached_square": "@lru_cache",
+    "sum_reduce": "reduce(lambda a, b: a + b, numbers, 0)",
 }
 
 
 def _prepare_exercise(data: dict) -> dict:
     prepared = dict(data)
-    prepared["solution_explanation"] = SOLUTION_EXPLANATIONS[prepared["function_name"]]
+    function_name = prepared["function_name"]
+    prepared["solution_explanation"] = SOLUTION_EXPLANATIONS[function_name]
+    prepared["hint_signature"] = HINT_SIGNATURES[function_name]
     return prepared
 
 
@@ -69,6 +161,7 @@ def sync_exercise_explanations(db: Session) -> None:
         exercise = db.query(Exercise).filter(Exercise.function_name == function_name).first()
         if exercise is not None:
             exercise.solution_explanation = explanation
+            exercise.hint_signature = HINT_SIGNATURES[function_name]
     db.commit()
 
 
@@ -103,6 +196,7 @@ def sync_topic_content(db: Session) -> None:
                     "description",
                     "starter_code",
                     "hint",
+                    "hint_signature",
                     "solution",
                     "tests_json",
                     "difficulty",
@@ -121,7 +215,12 @@ def seed_database(db: Session) -> None:
     if db.query(User).first():
         return
 
-    default_user = User(name="default", level=UserLevel.BEGINNER)
+    default_user = User(
+        name="admin",
+        email=settings.admin_email,
+        password_hash=hash_password(settings.admin_password) if settings.admin_password else None,
+        level=UserLevel.BEGINNER,
+    )
     db.add(default_user)
     db.flush()
 
@@ -355,6 +454,84 @@ d + timedelta(days=7)
 """,
             "exercises": _datetime_exercises(),
         },
+        {
+            "slug": "builtins",
+            "title": "Встроенные функции",
+            "min_user_level": UserLevel.INTERMEDIATE,
+            "sort_order": 14,
+            "theory_md": """# map, filter, all
+
+```python
+list(map(len, words))
+[x for x in nums if x > 0]
+all(x > 0 for x in nums)
+any(x == 0 for x in nums)
+```
+""",
+            "exercises": _builtins_exercises(),
+        },
+        {
+            "slug": "sorting",
+            "title": "Сортировка и кортежи",
+            "min_user_level": UserLevel.INTERMEDIATE,
+            "sort_order": 15,
+            "theory_md": """# sorted и key
+
+```python
+sorted(words)
+sorted(words, key=len)
+a, b = pair
+```
+
+`sorted` не меняет исходный список.
+""",
+            "exercises": _sorting_exercises(),
+        },
+        {
+            "slug": "json",
+            "title": "JSON",
+            "min_user_level": UserLevel.ADVANCED,
+            "sort_order": 16,
+            "theory_md": """# json
+
+```python
+import json
+
+json.loads('{"a": 1}')
+json.dumps(data, sort_keys=True)
+```
+""",
+            "exercises": _json_exercises(),
+        },
+        {
+            "slug": "regex",
+            "title": "Регулярные выражения",
+            "min_user_level": UserLevel.ADVANCED,
+            "sort_order": 17,
+            "theory_md": """# re
+
+```python
+import re
+
+re.findall(r"\\d+", text)
+re.sub(r"\\s+", " ", text)
+re.fullmatch(r"[A-Za-z]+", word)
+```
+""",
+            "exercises": _regex_exercises(),
+        },
+        {
+            "slug": "functools",
+            "title": "functools",
+            "min_user_level": UserLevel.EXPERT,
+            "sort_order": 18,
+            "theory_md": """# functools
+
+- **`reduce(func, iterable, start)`** — свёртка списка в одно значение
+- **`@lru_cache`** — мемоизация результатов функции
+""",
+            "exercises": _functools_exercises(),
+        },
     ]
 
 
@@ -445,6 +622,46 @@ def _strings_exercises() -> list[dict]:
             "min_user_level": UserLevel.ADVANCED,
             "sort_order": 4,
         },
+        {
+            "title": "Убрать пробелы",
+            "description": "Функция `remove_spaces(text)` удаляет все пробелы из строки.",
+            "starter_code": "def remove_spaces(text: str) -> str:\n    pass\n",
+            "hint": "Метод replace(' ', '').",
+            "solution": "def remove_spaces(text: str) -> str:\n    return text.replace(' ', '')\n",
+            "function_name": "remove_spaces",
+            "tests_json": json.dumps(
+                [
+                    {"args": ["a b c"], "expected": "abc"},
+                    {"args": ["hello"], "expected": "hello"},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.EASY,
+            "min_user_level": UserLevel.BEGINNER,
+            "sort_order": 5,
+        },
+        {
+            "title": "Начинается с гласной",
+            "description": "Функция `starts_with_vowel(text)` возвращает True, если первая буква — гласная (a,e,i,o,u).",
+            "starter_code": "def starts_with_vowel(text: str) -> bool:\n    pass\n",
+            "hint": "text[0].lower() in 'aeiou'",
+            "solution": (
+                "def starts_with_vowel(text: str) -> bool:\n"
+                "    if not text:\n"
+                "        return False\n"
+                "    return text[0].lower() in 'aeiou'\n"
+            ),
+            "function_name": "starts_with_vowel",
+            "tests_json": json.dumps(
+                [
+                    {"args": ["apple"], "expected": True},
+                    {"args": ["banana"], "expected": False},
+                    {"args": [""], "expected": False},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.EASY,
+            "min_user_level": UserLevel.BEGINNER,
+            "sort_order": 6,
+        },
     ]
 
 
@@ -510,6 +727,48 @@ def _lists_exercises() -> list[dict]:
             "min_user_level": UserLevel.INTERMEDIATE,
             "sort_order": 3,
         },
+        {
+            "title": "Максимум списка",
+            "description": "Функция `max_item(items)` возвращает максимальный элемент или None для пустого списка.",
+            "starter_code": "def max_item(items: list[int]) -> int | None:\n    pass\n",
+            "hint": "if not items: return None; иначе max(items).",
+            "solution": (
+                "def max_item(items: list[int]) -> int | None:\n"
+                "    if not items:\n"
+                "        return None\n"
+                "    return max(items)\n"
+            ),
+            "function_name": "max_item",
+            "tests_json": json.dumps(
+                [
+                    {"args": [[1, 5, 3]], "expected": 5},
+                    {"args": [[]], "expected": None},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.EASY,
+            "min_user_level": UserLevel.BEGINNER,
+            "sort_order": 4,
+        },
+        {
+            "title": "Пары элементов",
+            "description": "Функция `chunk_pairs(items)` разбивает список на пары: `[1,2,3,4]` → `[[1,2],[3,4]]`.",
+            "starter_code": "def chunk_pairs(items: list) -> list[list]:\n    pass\n",
+            "hint": "Срез items[i:i+2] в цикле range(0, len(items), 2).",
+            "solution": (
+                "def chunk_pairs(items: list) -> list[list]:\n"
+                "    return [items[i:i + 2] for i in range(0, len(items), 2)]\n"
+            ),
+            "function_name": "chunk_pairs",
+            "tests_json": json.dumps(
+                [
+                    {"args": [[1, 2, 3, 4]], "expected": [[1, 2], [3, 4]]},
+                    {"args": [[1, 2, 3]], "expected": [[1, 2], [3]]},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.MEDIUM,
+            "min_user_level": UserLevel.INTERMEDIATE,
+            "sort_order": 5,
+        },
     ]
 
 
@@ -553,6 +812,23 @@ def _dicts_exercises() -> list[dict]:
             "difficulty": ExerciseDifficulty.MEDIUM,
             "min_user_level": UserLevel.ADVANCED,
             "sort_order": 2,
+        },
+        {
+            "title": "Объединить словари",
+            "description": "Функция `merge_dicts(first, second)` объединяет словари; ключи из second перезаписывают first.",
+            "starter_code": "def merge_dicts(first: dict, second: dict) -> dict:\n    pass\n",
+            "hint": "{**first, **second}",
+            "solution": "def merge_dicts(first: dict, second: dict) -> dict:\n    return {**first, **second}\n",
+            "function_name": "merge_dicts",
+            "tests_json": json.dumps(
+                [
+                    {"args": [{"a": 1}, {"b": 2}], "expected": {"a": 1, "b": 2}},
+                    {"args": [{"a": 1}, {"a": 2}], "expected": {"a": 2}},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.EASY,
+            "min_user_level": UserLevel.INTERMEDIATE,
+            "sort_order": 3,
         },
     ]
 
@@ -672,6 +948,40 @@ def _loops_exercises() -> list[dict]:
             "difficulty": ExerciseDifficulty.MEDIUM,
             "min_user_level": UserLevel.INTERMEDIATE,
             "sort_order": 3,
+        },
+        {
+            "title": "Удвоить элементы",
+            "description": "Функция `double_values(items)` возвращает список с удвоенными значениями.",
+            "starter_code": "def double_values(items: list[int]) -> list[int]:\n    pass\n",
+            "hint": "[x * 2 for x in items]",
+            "solution": "def double_values(items: list[int]) -> list[int]:\n    return [x * 2 for x in items]\n",
+            "function_name": "double_values",
+            "tests_json": json.dumps(
+                [
+                    {"args": [[1, 2, 3]], "expected": [2, 4, 6]},
+                    {"args": [[]], "expected": []},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.EASY,
+            "min_user_level": UserLevel.BEGINNER,
+            "sort_order": 4,
+        },
+        {
+            "title": "Сколько раз встретился",
+            "description": "Функция `count_matches(items, target)` считает, сколько раз target встречается в списке.",
+            "starter_code": "def count_matches(items: list, target) -> int:\n    pass\n",
+            "hint": "sum(1 for x in items if x == target)",
+            "solution": "def count_matches(items: list, target) -> int:\n    return sum(1 for x in items if x == target)\n",
+            "function_name": "count_matches",
+            "tests_json": json.dumps(
+                [
+                    {"args": [[1, 2, 1, 3, 1], 1], "expected": 3},
+                    {"args": [["a", "b"], "x"], "expected": 0},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.MEDIUM,
+            "min_user_level": UserLevel.INTERMEDIATE,
+            "sort_order": 5,
         },
     ]
 
@@ -1191,6 +1501,345 @@ def _datetime_exercises() -> list[dict]:
                 ]
             ),
             "difficulty": ExerciseDifficulty.MEDIUM,
+            "min_user_level": UserLevel.EXPERT,
+            "sort_order": 3,
+        },
+        {
+            "title": "День недели ISO",
+            "description": "Функция `iso_weekday(iso_date)` возвращает номер дня недели: 1=понедельник, 7=воскресенье.",
+            "starter_code": "def iso_weekday(iso_date: str) -> int:\n    pass\n",
+            "hint": "date.fromisoformat(iso_date).isoweekday()",
+            "solution": (
+                "from datetime import date\n\n"
+                "def iso_weekday(iso_date: str) -> int:\n"
+                "    return date.fromisoformat(iso_date).isoweekday()\n"
+            ),
+            "function_name": "iso_weekday",
+            "tests_json": json.dumps(
+                [
+                    {"args": ["2024-06-03"], "expected": 1},
+                    {"args": ["2024-06-09"], "expected": 7},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.EASY,
+            "min_user_level": UserLevel.EXPERT,
+            "sort_order": 4,
+        },
+    ]
+
+
+def _builtins_exercises() -> list[dict]:
+    return [
+        {
+            "title": "Только положительные",
+            "description": "Функция `filter_positive(numbers)` возвращает список положительных чисел.",
+            "starter_code": "def filter_positive(numbers: list[int]) -> list[int]:\n    pass\n",
+            "hint": "[x for x in numbers if x > 0]",
+            "solution": "def filter_positive(numbers: list[int]) -> list[int]:\n    return [x for x in numbers if x > 0]\n",
+            "function_name": "filter_positive",
+            "tests_json": json.dumps(
+                [
+                    {"args": [[-1, 2, 0, 3]], "expected": [2, 3]},
+                    {"args": [[-5, -1]], "expected": []},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.EASY,
+            "min_user_level": UserLevel.INTERMEDIATE,
+            "sort_order": 1,
+        },
+        {
+            "title": "Длины через map",
+            "description": "Функция `map_lengths(words)` возвращает список длин слов через map().",
+            "starter_code": "def map_lengths(words: list[str]) -> list[int]:\n    pass\n",
+            "hint": "list(map(len, words))",
+            "solution": "def map_lengths(words: list[str]) -> list[int]:\n    return list(map(len, words))\n",
+            "function_name": "map_lengths",
+            "tests_json": json.dumps(
+                [
+                    {"args": [["hi", "hey", "a"]], "expected": [2, 3, 1]},
+                    {"args": [[]], "expected": []},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.MEDIUM,
+            "min_user_level": UserLevel.INTERMEDIATE,
+            "sort_order": 2,
+        },
+        {
+            "title": "Все чётные",
+            "description": "Функция `all_even(numbers)` возвращает True, если все числа чётные.",
+            "starter_code": "def all_even(numbers: list[int]) -> bool:\n    pass\n",
+            "hint": "all(x % 2 == 0 for x in numbers)",
+            "solution": "def all_even(numbers: list[int]) -> bool:\n    return all(x % 2 == 0 for x in numbers)\n",
+            "function_name": "all_even",
+            "tests_json": json.dumps(
+                [
+                    {"args": [[2, 4, 6]], "expected": True},
+                    {"args": [[2, 3]], "expected": False},
+                    {"args": [[]], "expected": True},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.MEDIUM,
+            "min_user_level": UserLevel.ADVANCED,
+            "sort_order": 3,
+        },
+    ]
+
+
+def _sorting_exercises() -> list[dict]:
+    return [
+        {
+            "title": "Отсортировать слова",
+            "description": "Функция `sort_words(words)` возвращает новый отсортированный список слов.",
+            "starter_code": "def sort_words(words: list[str]) -> list[str]:\n    pass\n",
+            "hint": "sorted(words)",
+            "solution": "def sort_words(words: list[str]) -> list[str]:\n    return sorted(words)\n",
+            "function_name": "sort_words",
+            "tests_json": json.dumps(
+                [
+                    {"args": [["banana", "apple", "cherry"]], "expected": ["apple", "banana", "cherry"]},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.EASY,
+            "min_user_level": UserLevel.INTERMEDIATE,
+            "sort_order": 1,
+        },
+        {
+            "title": "Сортировка по длине",
+            "description": "Функция `sort_by_length(words)` сортирует слова по длине.",
+            "starter_code": "def sort_by_length(words: list[str]) -> list[str]:\n    pass\n",
+            "hint": "sorted(words, key=len)",
+            "solution": "def sort_by_length(words: list[str]) -> list[str]:\n    return sorted(words, key=len)\n",
+            "function_name": "sort_by_length",
+            "tests_json": json.dumps(
+                [
+                    {"args": [["aaa", "b", "cc"]], "expected": ["b", "cc", "aaa"]},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.MEDIUM,
+            "min_user_level": UserLevel.INTERMEDIATE,
+            "sort_order": 2,
+        },
+        {
+            "title": "Поменять местами",
+            "description": "Функция `swap_pair(pair)` принимает кортеж из двух элементов и возвращает их в обратном порядке.",
+            "starter_code": "def swap_pair(pair: tuple) -> tuple:\n    pass\n",
+            "hint": "a, b = pair; return (b, a)",
+            "solution": "def swap_pair(pair: tuple) -> tuple:\n    a, b = pair\n    return (b, a)\n",
+            "function_name": "swap_pair",
+            "tests_json": json.dumps(
+                [
+                    {"args": [(1, 2)], "expected": [2, 1]},
+                    {"args": [("x", "y")], "expected": ["y", "x"]},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.EASY,
+            "min_user_level": UserLevel.ADVANCED,
+            "sort_order": 3,
+        },
+    ]
+
+
+def _json_exercises() -> list[dict]:
+    return [
+        {
+            "title": "Сумма JSON-массива",
+            "description": "Функция `parse_json_list(text)` парсит JSON-массив чисел и возвращает их сумму.",
+            "starter_code": "def parse_json_list(text: str) -> int:\n    pass\n",
+            "hint": "sum(json.loads(text))",
+            "solution": (
+                "import json\n\n"
+                "def parse_json_list(text: str) -> int:\n"
+                "    return sum(json.loads(text))\n"
+            ),
+            "function_name": "parse_json_list",
+            "tests_json": json.dumps(
+                [
+                    {"args": ["[1, 2, 3]"], "expected": 6},
+                    {"args": ["[]"], "expected": 0},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.EASY,
+            "min_user_level": UserLevel.ADVANCED,
+            "sort_order": 1,
+        },
+        {
+            "title": "JSON с сортировкой ключей",
+            "description": "Функция `dumps_sorted(data)` сериализует словарь в JSON с sort_keys=True.",
+            "starter_code": "def dumps_sorted(data: dict) -> str:\n    pass\n",
+            "hint": "json.dumps(data, sort_keys=True)",
+            "solution": (
+                "import json\n\n"
+                "def dumps_sorted(data: dict) -> str:\n"
+                "    return json.dumps(data, sort_keys=True)\n"
+            ),
+            "function_name": "dumps_sorted",
+            "tests_json": json.dumps(
+                [
+                    {"args": [{"b": 2, "a": 1}], "expected": '{"a": 1, "b": 2}'},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.MEDIUM,
+            "min_user_level": UserLevel.ADVANCED,
+            "sort_order": 2,
+        },
+        {
+            "title": "Имя из JSON",
+            "description": "Функция `json_get_name(text)` парсит JSON-объект и возвращает поле `name` или None.",
+            "starter_code": "def json_get_name(text: str) -> str | None:\n    pass\n",
+            "hint": "json.loads(text).get('name')",
+            "solution": (
+                "import json\n\n"
+                "def json_get_name(text: str) -> str | None:\n"
+                "    return json.loads(text).get('name')\n"
+            ),
+            "function_name": "json_get_name",
+            "tests_json": json.dumps(
+                [
+                    {"args": ['{"name": "Ann", "age": 30}'], "expected": "Ann"},
+                    {"args": ['{"age": 30}'], "expected": None},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.MEDIUM,
+            "min_user_level": UserLevel.EXPERT,
+            "sort_order": 3,
+        },
+    ]
+
+
+def _regex_exercises() -> list[dict]:
+    return [
+        {
+            "title": "Найти числа",
+            "description": "Функция `find_digits(text)` возвращает список групп цифр из строки.",
+            "starter_code": "def find_digits(text: str) -> list[str]:\n    pass\n",
+            "hint": "re.findall(r'\\d+', text)",
+            "solution": (
+                "import re\n\n"
+                "def find_digits(text: str) -> list[str]:\n"
+                "    return re.findall(r'\\d+', text)\n"
+            ),
+            "function_name": "find_digits",
+            "tests_json": json.dumps(
+                [
+                    {"args": ["order 12 and 345"], "expected": ["12", "345"]},
+                    {"args": ["no digits"], "expected": []},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.EASY,
+            "min_user_level": UserLevel.ADVANCED,
+            "sort_order": 1,
+        },
+        {
+            "title": "Схлопнуть пробелы",
+            "description": "Функция `normalize_spaces(text)` заменяет повторяющиеся пробелы одним и убирает края.",
+            "starter_code": "def normalize_spaces(text: str) -> str:\n    pass\n",
+            "hint": "re.sub(r'\\s+', ' ', text).strip()",
+            "solution": (
+                "import re\n\n"
+                "def normalize_spaces(text: str) -> str:\n"
+                "    return re.sub(r'\\s+', ' ', text).strip()\n"
+            ),
+            "function_name": "normalize_spaces",
+            "tests_json": json.dumps(
+                [
+                    {"args": ["  hello   world  "], "expected": "hello world"},
+                    {"args": ["a\t\tb"], "expected": "a b"},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.MEDIUM,
+            "min_user_level": UserLevel.ADVANCED,
+            "sort_order": 2,
+        },
+        {
+            "title": "Только буквы",
+            "description": "Функция `is_valid_word(word)` возвращает True, если слово состоит только из латинских букв.",
+            "starter_code": "def is_valid_word(word: str) -> bool:\n    pass\n",
+            "hint": "re.fullmatch(r'[A-Za-z]+', word) is not None",
+            "solution": (
+                "import re\n\n"
+                "def is_valid_word(word: str) -> bool:\n"
+                "    return re.fullmatch(r'[A-Za-z]+', word) is not None\n"
+            ),
+            "function_name": "is_valid_word",
+            "tests_json": json.dumps(
+                [
+                    {"args": ["Hello"], "expected": True},
+                    {"args": ["Hello1"], "expected": False},
+                    {"args": [""], "expected": False},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.MEDIUM,
+            "min_user_level": UserLevel.EXPERT,
+            "sort_order": 3,
+        },
+    ]
+
+
+def _functools_exercises() -> list[dict]:
+    return [
+        {
+            "title": "Произведение через reduce",
+            "description": "Функция `product_reduce(numbers)` возвращает произведение чисел через functools.reduce.",
+            "starter_code": "def product_reduce(numbers: list[int]) -> int:\n    pass\n",
+            "hint": "reduce(lambda a, b: a * b, numbers, 1)",
+            "solution": (
+                "from functools import reduce\n\n"
+                "def product_reduce(numbers: list[int]) -> int:\n"
+                "    return reduce(lambda a, b: a * b, numbers, 1)\n"
+            ),
+            "function_name": "product_reduce",
+            "tests_json": json.dumps(
+                [
+                    {"args": [[2, 3, 4]], "expected": 24},
+                    {"args": [[]], "expected": 1},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.MEDIUM,
+            "min_user_level": UserLevel.EXPERT,
+            "sort_order": 1,
+        },
+        {
+            "title": "Кеш квадрата",
+            "description": "Функция `cached_square(n)` возвращает n*n с lru_cache на внутренней функции.",
+            "starter_code": "def cached_square(n: int) -> int:\n    pass\n",
+            "hint": "Вложенная функция с @lru_cache.",
+            "solution": (
+                "from functools import lru_cache\n\n"
+                "def cached_square(n: int) -> int:\n"
+                "    @lru_cache\n"
+                "    def _square(value: int) -> int:\n"
+                "        return value * value\n"
+                "    return _square(n)\n"
+            ),
+            "function_name": "cached_square",
+            "tests_json": json.dumps(
+                [
+                    {"args": [5], "expected": 25},
+                    {"args": [0], "expected": 0},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.HARD,
+            "min_user_level": UserLevel.EXPERT,
+            "sort_order": 2,
+        },
+        {
+            "title": "Сумма через reduce",
+            "description": "Функция `sum_reduce(numbers)` возвращает сумму списка через reduce.",
+            "starter_code": "def sum_reduce(numbers: list[int]) -> int:\n    pass\n",
+            "hint": "reduce(lambda a, b: a + b, numbers, 0)",
+            "solution": (
+                "from functools import reduce\n\n"
+                "def sum_reduce(numbers: list[int]) -> int:\n"
+                "    return reduce(lambda a, b: a + b, numbers, 0)\n"
+            ),
+            "function_name": "sum_reduce",
+            "tests_json": json.dumps(
+                [
+                    {"args": [[1, 2, 3]], "expected": 6},
+                    {"args": [[]], "expected": 0},
+                ]
+            ),
+            "difficulty": ExerciseDifficulty.EASY,
             "min_user_level": UserLevel.EXPERT,
             "sort_order": 3,
         },

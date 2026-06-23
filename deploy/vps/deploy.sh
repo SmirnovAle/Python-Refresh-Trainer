@@ -12,6 +12,13 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
+if [ -z "${TRAINER_JWT_SECRET:-}" ] || [ -z "${TRAINER_ADMIN_PASSWORD:-}" ]; then
+  echo "Задайте переменные окружения перед деплоем:"
+  echo "  export TRAINER_JWT_SECRET=\$(openssl rand -hex 32)"
+  echo "  export TRAINER_ADMIN_PASSWORD='ваш_пароль'"
+  exit 1
+fi
+
 if [ ! -d "${APP_DIR}/.git" ]; then
   sudo mkdir -p "$(dirname "${APP_DIR}")"
   sudo git clone "${REPO_URL}" "${APP_DIR}"
@@ -22,14 +29,6 @@ else
 fi
 
 cd "${APP_DIR}"
-
-if [ ! -f nginx/.htpasswd ]; then
-  echo "Создайте nginx/.htpasswd:"
-  echo "  htpasswd -nbB admin 'YOUR_PASSWORD' | sudo tee nginx/.htpasswd"
-  exit 1
-fi
-
-chmod 644 nginx/.htpasswd 2>/dev/null || sudo chmod 644 nginx/.htpasswd
 
 echo "==> Сборка и запуск контейнеров"
 ${COMPOSE} up --build -d
@@ -44,4 +43,5 @@ echo
 echo "Дальше:"
 echo "  1. Настройте внешний nginx: deploy/vps/nginx-site.conf"
 echo "  2. sudo certbot --nginx -d YOUR_DOMAIN"
-echo "  3. ufw allow 80,443 && ufw enable  (порт 8080 наружу не открывать)"
+echo "  3. ufw allow 80,443 && ufw enable  (порт 8090 наружу не открывать)"
+echo "  4. Вход в приложении: admin@local / пароль из TRAINER_ADMIN_PASSWORD"

@@ -30,6 +30,8 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     level: Mapped[UserLevel] = mapped_column(Enum(UserLevel), default=UserLevel.BEGINNER)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -58,6 +60,7 @@ class Exercise(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     starter_code: Mapped[str] = mapped_column(Text, nullable=False)
     hint: Mapped[str] = mapped_column(Text, nullable=False)
+    hint_signature: Mapped[str] = mapped_column(Text, nullable=False, default="")
     solution: Mapped[str] = mapped_column(Text, nullable=False)
     solution_explanation: Mapped[str] = mapped_column(Text, nullable=False, default="")
     function_name: Mapped[str] = mapped_column(String(100), nullable=False)

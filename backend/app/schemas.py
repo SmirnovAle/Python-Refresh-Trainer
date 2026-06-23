@@ -39,9 +39,15 @@ DIFFICULTY_LABELS: dict[ExerciseDifficulty, str] = {
 class UserOut(BaseModel):
     id: int
     name: str
+    email: str | None = None
     level: UserLevel
 
     model_config = {"from_attributes": True}
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(min_length=3)
+    password: str = Field(min_length=1)
 
 
 class UserLevelUpdate(BaseModel):
@@ -128,6 +134,7 @@ class SubmitCodeResponse(BaseModel):
 
 class HintResponse(BaseModel):
     hint: str
+    hint_signature: str = ""
 
 
 class SolutionResponse(BaseModel):
@@ -136,8 +143,11 @@ class SolutionResponse(BaseModel):
 
 
 class AiExplainRequest(BaseModel):
-    code: str
+    exercise_id: int
+    code: str = Field(min_length=1)
     error: str | None = None
+    stderr: str | None = None
+    failed_tests: list[str] = Field(default_factory=list)
 
 
 class AiExplainResponse(BaseModel):

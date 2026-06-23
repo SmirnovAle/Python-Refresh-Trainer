@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { Link, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import {
+  explainError,
   getCurrentUser,
   getExercise,
   getHint,
@@ -9,9 +10,11 @@ import {
   getSolution,
   getTopic,
   getTopics,
+  logout,
   submitExercise,
   updateUserLevel,
 } from "./api";
+import { LoginPage } from "./components/LoginPage";
 import { Sidebar } from "./components/Sidebar";
 import type {
   ExerciseDetail,
@@ -121,10 +124,13 @@ function ExercisePage({
   const [code, setCode] = useState("");
   const [result, setResult] = useState<SubmitCodeResponse | null>(null);
   const [hint, setHint] = useState<string | null>(null);
+  const [hintSignature, setHintSignature] = useState<string | null>(null);
   const [solutionVisible, setSolutionVisible] = useState(false);
   const [solutionCode, setSolutionCode] = useState<string | null>(null);
   const [solutionExplanation, setSolutionExplanation] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -132,9 +138,11 @@ function ExercisePage({
     setError(null);
     setResult(null);
     setHint(null);
+    setHintSignature(null);
     setSolutionVisible(false);
     setSolutionCode(null);
     setSolutionExplanation(null);
+    setAiExplanation(null);
 
     getExercise(exerciseId)
       .then((data) => {
@@ -156,6 +164,7 @@ function ExercisePage({
     if (!exercise) return;
     setLoading(true);
     setError(null);
+    setAiExplanation(null);
     try {
       const response = await submitExercise(exercise.id, code);
       setResult(response);
@@ -175,8 +184,36 @@ function ExercisePage({
     try {
       const response = await getHint(exercise.id);
       setHint(response.hint);
+      setHintSignature(response.hint_signature || null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось получить подсказку");
+    }
+  }
+
+  async function handleExplain() {
+    if (!exercise || !result || result.success) return;
+    setAiLoading(true);
+    setError(null);
+    try {
+      const response = await explainError({
+        exercise_id: exercise.id,
+        code,
+        error: result.error,
+        stderr: result.stderr || null,
+        failed_tests: result.tests.filter((test) => !test.passed).map((test) => test.message),
+      });
+      setAiExplanation(response.explanation);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось получить AI-разбор");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  function handleEditorKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      event.preventDefault();
+      void handleSubmit();
     }
   }
 
@@ -219,6 +256,7 @@ function ExercisePage({
             className="code-editor"
             value={code}
             onChange={(event) => setCode(event.target.value)}
+            onKeyDown={handleEditorKeyDown}
             spellCheck={false}
           />
         </div>
@@ -258,7 +296,17 @@ function ExercisePage({
         )}
       </div>
 
-      {hint && <div className="hint-box">{hint}</div>}
+      {hint && (
+        <div className="hint-box">
+          {hintSignature && (
+            <div className="hint-signature">
+              <span className="muted">Ключевая конструкция:</span>
+              <code>{hintSignature}</code>
+            </div>
+          )}
+          <div>{hint}</div>
+        </div>
+      )}
       {error && <div className="error-box">{error}</div>}
 
       {result && (
@@ -270,6 +318,19 @@ function ExercisePage({
           </p>
           {result.error && <div className="error-box">{result.error}</div>}
           {result.stderr && <div className="muted">stderr: {result.stderr}</div>}
+          {!result.success && (
+            <div className="actions" style={{ marginTop: "1rem" }}>
+              <button type="button" className="secondary" onClick={handleExplain} disabled={aiLoading}>
+                {aiLoading ? "AI думает..." : "Объяснить ошибку"}
+              </button>
+            </div>
+          )}
+          {aiExplanation && (
+            <div className="ai-box markdown-body">
+              <h3>AI-разбор</h3>
+              <ReactMarkdown>{aiExplanation}</ReactMarkdown>
+            </div>
+          )}
           <div className="test-results">
             {result.tests.map((test) => (
               <div key={test.index} className={`test-result ${test.passed ? "pass" : "fail"}`}>
@@ -292,6 +353,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(true);
   const [loadingLevel, setLoadingLevel] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
+  const [authState, setAuthState] = useState<"loading" | "guest" | "authenticated">("loading");
 
   async function refreshDashboard() {
     const [topicsData, userData, progressData] = await Promise.all([
@@ -302,11 +364,34 @@ export default function App() {
     setTopics(topicsData);
     setUser(userData);
     setProgress(progressData);
+    setAuthState("authenticated");
+    setBootError(null);
   }
 
   useEffect(() => {
-    refreshDashboard().catch((err: Error) => setBootError(err.message));
+    refreshDashboard().catch((err: Error) => {
+      if (err.message.includes("Требуется вход") || err.message.includes("Сессия истекла")) {
+        setAuthState("guest");
+        return;
+      }
+      setBootError(err.message);
+      setAuthState("guest");
+    });
   }, []);
+
+  async function handleLogout() {
+    try {
+      await logout();
+    } catch {
+      // cookie may already be cleared
+    }
+    setTopics([]);
+    setUser(null);
+    setProgress(null);
+    setBootError(null);
+    setAuthState("guest");
+    navigate("/");
+  }
 
   async function handleLevelChange(level: UserLevel) {
     setLoadingLevel(true);
@@ -320,6 +405,14 @@ export default function App() {
     } finally {
       setLoadingLevel(false);
     }
+  }
+
+  if (authState === "loading") {
+    return <div className="empty-state">Загрузка...</div>;
+  }
+
+  if (authState === "guest") {
+    return <LoginPage onSuccess={() => refreshDashboard().catch((err: Error) => setBootError(err.message))} />;
   }
 
   if (bootError) {
@@ -336,6 +429,7 @@ export default function App() {
         onToggleMenu={() => setMenuOpen((value) => !value)}
         onLevelChange={handleLevelChange}
         loadingLevel={loadingLevel}
+        onLogout={handleLogout}
       />
       <main className="main-content">
         <Routes>

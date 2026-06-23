@@ -7,6 +7,22 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/trainer.db"
     default_user_id: int = 1
     code_timeout_seconds: float = 2.0
+    auth_enabled: bool = True
+    admin_email: str = "admin@local"
+    admin_password: str = "dev"
+    jwt_secret: str = "dev-insecure-change-me"
+    jwt_expire_hours: int = 24
+    cookie_name: str = "trainer_token"
+    cookie_secure: bool = False
+    cors_origins: str = "http://localhost:8080,http://localhost:5173"
+    ai_enabled: bool = False
+    openai_api_key: str = ""
+    ai_model: str = "gpt-4o-mini"
+    ai_base_url: str = "https://api.openai.com/v1"
+    ai_timeout_seconds: float = 30.0
+
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 settings = Settings()

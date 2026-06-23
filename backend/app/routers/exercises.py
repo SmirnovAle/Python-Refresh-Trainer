@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Exercise, Progress, ProgressStatus
-from app.routers.users import resolve_user_id
+from app.dependencies.auth import require_user_id
 from app.schemas import (
     ExerciseDetail,
     HintResponse,
@@ -27,7 +27,7 @@ def _get_exercise_or_404(db: Session, exercise_id: int) -> Exercise:
 @router.get("/{exercise_id}", response_model=ExerciseDetail)
 def get_exercise(
     exercise_id: int,
-    user_id: int = Depends(resolve_user_id),
+    user_id: int = Depends(require_user_id),
     db: Session = Depends(get_db),
 ) -> ExerciseDetail:
     user = get_default_user(db, user_id)
@@ -67,7 +67,7 @@ def get_exercise(
 def submit_exercise(
     exercise_id: int,
     payload: SubmitCodeRequest,
-    user_id: int = Depends(resolve_user_id),
+    user_id: int = Depends(require_user_id),
     db: Session = Depends(get_db),
 ) -> SubmitCodeResponse:
     user = get_default_user(db, user_id)
@@ -94,7 +94,7 @@ def submit_exercise(
 @router.get("/{exercise_id}/hint", response_model=HintResponse)
 def get_hint(
     exercise_id: int,
-    user_id: int = Depends(resolve_user_id),
+    user_id: int = Depends(require_user_id),
     db: Session = Depends(get_db),
 ) -> HintResponse:
     user = get_default_user(db, user_id)
@@ -103,13 +103,13 @@ def get_hint(
     if not is_level_available(user.level, exercise.min_user_level):
         raise HTTPException(status_code=403, detail="Задание недоступно на вашем уровне")
 
-    return HintResponse(hint=exercise.hint)
+    return HintResponse(hint=exercise.hint, hint_signature=exercise.hint_signature)
 
 
 @router.get("/{exercise_id}/solution", response_model=SolutionResponse)
 def get_solution(
     exercise_id: int,
-    user_id: int = Depends(resolve_user_id),
+    user_id: int = Depends(require_user_id),
     db: Session = Depends(get_db),
 ) -> SolutionResponse:
     user = get_default_user(db, user_id)

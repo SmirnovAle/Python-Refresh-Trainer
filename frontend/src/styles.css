@@ -360,6 +360,34 @@ button:disabled {
   border: 1px solid rgba(247, 185, 85, 0.35);
 }
 
+.hint-signature {
+  margin-bottom: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.hint-signature code {
+  display: block;
+  margin-top: 0.35rem;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.95rem;
+  color: var(--accent);
+  word-break: break-word;
+}
+
+.ai-box {
+  margin-top: 1rem;
+  padding: 0.875rem;
+  border-radius: 10px;
+  background: rgba(77, 163, 255, 0.1);
+  border: 1px solid rgba(77, 163, 255, 0.35);
+}
+
+.ai-box h3 {
+  margin-top: 0;
+}
+
 .back-link {
   display: inline-block;
   margin-bottom: 0.75rem;
@@ -369,4 +397,31 @@ button:disabled {
 .empty-state {
   padding: 1rem;
   color: var(--muted);
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.login-card {
+  width: min(100%, 420px);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.text-input {
+  width: 100%;
+  padding: 0.75rem 0.875rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.logout-button {
+  width: 100%;
+  margin-top: 0.5rem;
 }

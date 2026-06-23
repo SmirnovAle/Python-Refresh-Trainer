@@ -11,22 +11,23 @@
 
 ## Быстрый старт
 
-### Локально (без пароля)
+### Локально (без входа)
 
 ```bash
 docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
 
-Открыть: http://localhost:8080
+Открыть: http://localhost:8080 — auth отключён (`TRAINER_AUTH_ENABLED=false`).
 
-### VPS (Basic Auth до пользовательских аккаунтов)
+### VPS (вход в приложении)
 
 ```bash
-docker run --rm httpd:2.4-alpine htpasswd -nbB admin YOUR_PASSWORD > nginx/.htpasswd
+export TRAINER_JWT_SECRET=$(openssl rand -hex 32)
+export TRAINER_ADMIN_PASSWORD='ваш_пароль'
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ```
 
-Логин/пароль — из `.htpasswd`. После реализации auth в приложении убрать `docker-compose.prod.yml`.
+Логин: **admin@local** / пароль из `TRAINER_ADMIN_PASSWORD`. JWT в httpOnly-cookie.
 
 ## Уровни пользователя
 
@@ -39,11 +40,13 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 
 ## MVP контент
 
-13 тем, **39 заданий** с теорией, подсказками, эталонными решениями и разбором инструментов.
+18 тем, **62 задания** с теорией, подсказками, эталонными решениями и разбором инструментов.
 
 ## API
 
-- `GET /api/health`
+- `GET /api/health` — без auth
+- `POST /api/auth/login` — вход, JWT-cookie
+- `POST /api/auth/logout`
 - `GET /api/users/me`
 - `PATCH /api/users/me/level`
 - `GET /api/topics`
@@ -53,7 +56,8 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 - `GET /api/exercises/{id}/hint`
 - `GET /api/exercises/{id}/solution`
 - `GET /api/progress/summary`
-- `POST /api/ai/explain` — заглушка (501)
+- `POST /api/ai/explain` — разбор ошибки (нужен `TRAINER_AI_ENABLED` + API-ключ)
+- `GET /api/ai/status` — включён ли AI
 
 ## Деплой на VPS
 
@@ -73,17 +77,18 @@ sudo git clone https://github.com/SmirnovAle/Python-Refresh-Trainer.git /opt/pyt
 sudo chown -R $USER:$USER /opt/python-refresh-trainer
 cd /opt/python-refresh-trainer
 
-# Basic Auth (до пользовательских аккаунтов)
-docker run --rm httpd:2.4-alpine htpasswd -nbB admin 'ВАШ_ПАРОЛЬ' > nginx/.htpasswd
-chmod 644 nginx/.htpasswd
+export TRAINER_JWT_SECRET=$(openssl rand -hex 32)
+export TRAINER_ADMIN_PASSWORD='ваш_пароль'
 ```
 
 ### 2. Запуск приложения
 
 ```bash
 cd /opt/python-refresh-trainer
+export TRAINER_JWT_SECRET='...'   # сохраните в ~/.bashrc или systemd env
+export TRAINER_ADMIN_PASSWORD='...'
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
-curl -u admin:ВАШ_ПАРОЛЬ http://127.0.0.1:8090/api/health
+curl -sf http://127.0.0.1:8090/api/health
 ```
 
 Или скрипт:
@@ -122,13 +127,31 @@ cd /opt/python-refresh-trainer
 ./deploy/vps/update.sh
 ```
 
+### 6. Бэкап SQLite
+
+```bash
+chmod +x deploy/vps/backup-db.sh
+./deploy/vps/backup-db.sh
+# cron: 0 3 * * * /opt/python-refresh-trainer/deploy/vps/backup-db.sh
+```
+
+Бэкапы: `/var/backups/python-trainer/`, хранятся 14 дней.
+
 ### Схема
 
 ```
-Интернет → nginx:443 (SSL) → 127.0.0.1:8090 (docker frontend + Basic Auth) → backend:8000
+Интернет → nginx:443 (SSL) → 127.0.0.1:8090 (docker frontend) → backend:8000
 ```
 
-После реализации auth в приложении уберите `docker-compose.prod.yml` и Basic Auth из `nginx/nginx.prod.conf`.
+Вход — через форму в приложении (JWT-cookie). nginx Basic Auth больше не используется.
+
+### Безопасность
+
+- **HTTPS**: TLS на внешнем nginx (`deploy/vps/nginx-site.conf`), HTTP → 301 на HTTPS, HSTS.
+- **Cookie**: `Secure` + `HttpOnly` + `SameSite=Lax` в prod (`TRAINER_COOKIE_SECURE=true`).
+- **JWT**: 24 часа (`TRAINER_JWT_EXPIRE_HOURS`).
+- **Пароли**: bcrypt, cost factor 12.
+- **CORS**: явный список origin (`TRAINER_CORS_ORIGINS`), `credentials: true` — wildcard `*` не используется.
 
 ## Локальная разработка без Docker
 
@@ -151,3 +174,25 @@ npm run dev
 | `TRAINER_DATABASE_URL` | `sqlite:///./data/trainer.db` |
 | `TRAINER_DEFAULT_USER_ID` | `1` |
 | `TRAINER_CODE_TIMEOUT_SECONDS` | `2.0` |
+| `TRAINER_AUTH_ENABLED` | `true` |
+| `TRAINER_ADMIN_EMAIL` | `admin@local` |
+| `TRAINER_ADMIN_PASSWORD` | `dev` |
+| `TRAINER_JWT_SECRET` | `dev-insecure-change-me` |
+| `TRAINER_JWT_EXPIRE_HOURS` | `24` |
+| `TRAINER_COOKIE_SECURE` | `false` |
+| `TRAINER_CORS_ORIGINS` | `http://localhost:8080,http://localhost:5173` |
+| `TRAINER_AI_ENABLED` | `false` |
+| `TRAINER_OPENAI_API_KEY` | — |
+| `TRAINER_AI_MODEL` | `gpt-4o-mini` |
+| `TRAINER_AI_BASE_URL` | `https://api.openai.com/v1` |
+| `TRAINER_AI_TIMEOUT_SECONDS` | `30.0` |
+
+### AI (опционально)
+
+```bash
+export TRAINER_AI_ENABLED=true
+export TRAINER_OPENAI_API_KEY='sk-...'
+# для совместимых API (OpenRouter, локальный proxy):
+# export TRAINER_AI_BASE_URL='https://openrouter.ai/api/v1'
+# export TRAINER_AI_MODEL='...'
+```

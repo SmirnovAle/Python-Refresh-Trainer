@@ -3,6 +3,10 @@ services:
     build: ./backend
     environment:
       TRAINER_DATABASE_URL: sqlite:////app/data/trainer.db
+      TRAINER_ADMIN_EMAIL: admin@local
+      TRAINER_ADMIN_PASSWORD: dev
+      TRAINER_JWT_SECRET: dev-insecure-change-me
+      TRAINER_AUTH_ENABLED: "true"
     volumes:
       - trainer_data:/app/data
     restart: unless-stopped
