@@ -3,6 +3,7 @@ import { Link, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import {
   explainError,
+  getAiStatus,
   getCurrentUser,
   getExercise,
   getHint,
@@ -16,6 +17,7 @@ import {
 } from "./api";
 import { LoginPage } from "./components/LoginPage";
 import { Sidebar } from "./components/Sidebar";
+import { clearDraft, resolveInitialCode, writeDraft } from "./draftStorage";
 import type {
   ExerciseDetail,
   ProgressSummary,
@@ -130,6 +132,7 @@ function ExercisePage({
   const [solutionExplanation, setSolutionExplanation] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiAvailable, setAiAvailable] = useState(false);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -148,17 +151,31 @@ function ExercisePage({
       .then((data) => {
         if (!cancelled) {
           setExercise(data);
-          setCode(data.last_code ?? data.starter_code);
+          setCode(resolveInitialCode(exerciseId, data.last_code, data.starter_code));
         }
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message);
       });
 
+    getAiStatus()
+      .then((status) => {
+        if (!cancelled) setAiAvailable(status.configured);
+      })
+      .catch(() => {
+        if (!cancelled) setAiAvailable(false);
+      });
+
     return () => {
       cancelled = true;
     };
   }, [exerciseId]);
+
+  useEffect(() => {
+    if (!exercise) return;
+    const timer = window.setTimeout(() => writeDraft(exercise.id, code), 400);
+    return () => window.clearTimeout(timer);
+  }, [code, exercise]);
 
   async function handleSubmit() {
     if (!exercise) return;
@@ -169,6 +186,7 @@ function ExercisePage({
       const response = await submitExercise(exercise.id, code);
       setResult(response);
       if (response.success) {
+        clearDraft(exercise.id);
         onProgressChange();
         setExercise({ ...exercise, solved: true });
       }
@@ -318,7 +336,7 @@ function ExercisePage({
           </p>
           {result.error && <div className="error-box">{result.error}</div>}
           {result.stderr && <div className="muted">stderr: {result.stderr}</div>}
-          {!result.success && (
+          {!result.success && aiAvailable && (
             <div className="actions" style={{ marginTop: "1rem" }}>
               <button type="button" className="secondary" onClick={handleExplain} disabled={aiLoading}>
                 {aiLoading ? "AI думает..." : "Объяснить ошибку"}

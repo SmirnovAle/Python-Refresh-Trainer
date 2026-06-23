@@ -100,3 +100,7 @@ export function explainError(payload: {
     body: JSON.stringify(payload),
   });
 }
+
+export function getAiStatus(): Promise<{ enabled: boolean; configured: boolean; model: string }> {
+  return request<{ enabled: boolean; configured: boolean; model: string }>("/ai/status");
+}
