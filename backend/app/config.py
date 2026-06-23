@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     ai_http_referer: str = "https://python-simulator.ai-smirnov.ru"
     ai_app_title: str = "Python Refresh Trainer"
     ai_timeout_seconds: float = 45.0
+    registration_enabled: bool = True
+    max_users: int = 500
+    inactive_account_days: int = 365
 
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import inspect, text
 
 from app.config import settings
@@ -30,6 +32,11 @@ def run_migrations() -> None:
                 connection.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(255)"))
             if "password_hash" not in columns:
                 connection.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)"))
+            if "last_login_at" not in columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN last_login_at DATETIME"))
+                connection.execute(
+                    text("UPDATE users SET last_login_at = created_at WHERE last_login_at IS NULL")
+                )
 
     ensure_admin_user()
 
@@ -45,8 +52,13 @@ def ensure_admin_user() -> None:
         elif user.email is None:
             user.email = settings.admin_email
 
+        user.email = settings.admin_email.strip().lower()
+
         if user.password_hash is None and settings.admin_password:
             user.password_hash = hash_password(settings.admin_password)
+
+        if user.last_login_at is None:
+            user.last_login_at = datetime.utcnow()
 
         db.commit()
     finally:

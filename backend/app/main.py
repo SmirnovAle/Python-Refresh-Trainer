@@ -10,6 +10,7 @@ from app.migrations import run_migrations
 from app.routers import ai, auth, exercises, progress, topics, users
 from app.schemas import HealthResponse
 from app.seed import seed_database, sync_exercise_explanations, sync_topic_content
+from app.services.auth_service import cleanup_inactive_accounts
 
 app = FastAPI(title="Python Refresh Trainer", version="0.1.0")
 
@@ -41,6 +42,7 @@ def on_startup() -> None:
         seed_database(db)
         sync_topic_content(db)
         sync_exercise_explanations(db)
+        cleanup_inactive_accounts(db)
     finally:
         db.close()
 

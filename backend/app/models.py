@@ -34,8 +34,9 @@ class User(Base):
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     level: Mapped[UserLevel] = mapped_column(Enum(UserLevel), default=UserLevel.BEGINNER)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    progress: Mapped[list["Progress"]] = relationship(back_populates="user")
+    progress: Mapped[list["Progress"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class Topic(Base):

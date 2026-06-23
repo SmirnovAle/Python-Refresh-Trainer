@@ -456,3 +456,15 @@ button:disabled {
   width: 100%;
   margin-top: 0.5rem;
 }
+
+.login-hint {
+  margin: -0.25rem 0 0;
+  font-size: 0.85rem;
+}
+
+.login-switch {
+  background: transparent;
+  color: var(--accent);
+  padding: 0.25rem 0;
+  font-weight: 500;
+}

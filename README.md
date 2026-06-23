@@ -38,6 +38,8 @@ cd /opt/python-refresh-trainer
 ## API
 
 - `GET /api/health` — без auth
+- `GET /api/auth/config` — включена ли регистрация
+- `POST /api/auth/register` — регистрация, JWT-cookie
 - `POST /api/auth/login` — вход, JWT-cookie
 - `POST /api/auth/logout`
 - `GET /api/users/me`
@@ -170,6 +172,16 @@ chmod +x deploy/vps/backup-db.sh
 | `TRAINER_AI_HTTP_REFERER` | `https://python-simulator.ai-smirnov.ru` |
 | `TRAINER_AI_APP_TITLE` | `Python Refresh Trainer` |
 | `TRAINER_AI_TIMEOUT_SECONDS` | `45.0` |
+| `TRAINER_REGISTRATION_ENABLED` | `true` |
+| `TRAINER_MAX_USERS` | `500` |
+| `TRAINER_INACTIVE_ACCOUNT_DAYS` | `365` (`0` — не удалять) |
+
+### Пользователи и регистрация
+
+- Регистрация через форму на сайте (`POST /api/auth/register`): имя, email, пароль от 8 символов.
+- **Лимит аккаунтов:** `TRAINER_MAX_USERS=500` по умолчанию. Для SQLite на VPS это безопасный запас против спама; технически база выдержит тысячи записей, но прогресс × 62 задания остаётся компактным.
+- **Неактивные аккаунты:** при старте backend удаляет пользователей без входа дольше `TRAINER_INACTIVE_ACCOUNT_DAYS` (365 дней). Аккаунт **admin@local** не трогается. `0` — автоочистка выключена.
+- Отключить регистрацию: `TRAINER_REGISTRATION_ENABLED=false` в `.deploy.env`.
 
 ### AI через OpenRouter (бесплатно)
 
