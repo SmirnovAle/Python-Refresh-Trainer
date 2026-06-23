@@ -9,12 +9,12 @@ sudo git fetch origin main
 sudo git reset --hard origin/main
 
 if [ -f "$ENV_FILE" ]; then
-  TRAINER_JWT_SECRET=$(sudo grep '^TRAINER_JWT_SECRET=' "$ENV_FILE" | cut -d= -f2-)
-  TRAINER_ADMIN_PASSWORD=$(sudo grep '^TRAINER_ADMIN_PASSWORD=' "$ENV_FILE" | cut -d= -f2-)
-  TRAINER_AI_ENABLED=$(sudo grep '^TRAINER_AI_ENABLED=' "$ENV_FILE" | cut -d= -f2- || true)
-  TRAINER_OPENAI_API_KEY=$(sudo grep '^TRAINER_OPENAI_API_KEY=' "$ENV_FILE" | cut -d= -f2- || true)
-  TRAINER_AI_MODEL=$(sudo grep '^TRAINER_AI_MODEL=' "$ENV_FILE" | cut -d= -f2- || true)
-  TRAINER_AI_BASE_URL=$(sudo grep '^TRAINER_AI_BASE_URL=' "$ENV_FILE" | cut -d= -f2- || true)
+  TRAINER_JWT_SECRET=$(sudo grep '^TRAINER_JWT_SECRET=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r')
+  TRAINER_ADMIN_PASSWORD=$(sudo grep '^TRAINER_ADMIN_PASSWORD=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r')
+  TRAINER_AI_ENABLED=$(sudo grep '^TRAINER_AI_ENABLED=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r' || true)
+  TRAINER_OPENAI_API_KEY=$(sudo grep '^TRAINER_OPENAI_API_KEY=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r' || true)
+  TRAINER_AI_MODEL=$(sudo grep '^TRAINER_AI_MODEL=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r' || true)
+  TRAINER_AI_BASE_URL=$(sudo grep '^TRAINER_AI_BASE_URL=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r' || true)
 else
   echo "Нет ${ENV_FILE}. Запустите deploy/vps/deploy.sh или создайте файл вручную."
   exit 1
@@ -44,4 +44,4 @@ sudo "${DEPLOY_ENV[@]}" docker-compose -f docker-compose.yml -f docker-compose.p
 
 sudo "${DEPLOY_ENV[@]}" docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
-sudo docker-compose -f docker-compose.yml -f docker-compose.prod.yml ps
+sudo "${DEPLOY_ENV[@]}" docker-compose -f docker-compose.yml -f docker-compose.prod.yml ps
