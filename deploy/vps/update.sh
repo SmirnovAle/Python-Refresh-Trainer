@@ -14,6 +14,7 @@ if [ -f "$ENV_FILE" ]; then
   TRAINER_AI_ENABLED=$(sudo grep '^TRAINER_AI_ENABLED=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r' || true)
   TRAINER_OPENAI_API_KEY=$(sudo grep '^TRAINER_OPENAI_API_KEY=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r' || true)
   TRAINER_AI_MODEL=$(sudo grep '^TRAINER_AI_MODEL=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r' || true)
+  TRAINER_AI_FALLBACK_MODELS=$(sudo grep '^TRAINER_AI_FALLBACK_MODELS=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r' || true)
   TRAINER_AI_BASE_URL=$(sudo grep '^TRAINER_AI_BASE_URL=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r' || true)
 else
   echo "Нет ${ENV_FILE}. Запустите deploy/vps/deploy.sh или создайте файл вручную."
@@ -35,6 +36,9 @@ if [ -n "${TRAINER_OPENAI_API_KEY:-}" ]; then
 fi
 if [ -n "${TRAINER_AI_MODEL:-}" ]; then
   DEPLOY_ENV+=("TRAINER_AI_MODEL=$TRAINER_AI_MODEL")
+fi
+if [ -n "${TRAINER_AI_FALLBACK_MODELS:-}" ]; then
+  DEPLOY_ENV+=("TRAINER_AI_FALLBACK_MODELS=$TRAINER_AI_FALLBACK_MODELS")
 fi
 if [ -n "${TRAINER_AI_BASE_URL:-}" ]; then
   DEPLOY_ENV+=("TRAINER_AI_BASE_URL=$TRAINER_AI_BASE_URL")

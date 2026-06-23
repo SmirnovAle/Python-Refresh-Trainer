@@ -164,7 +164,8 @@ chmod +x deploy/vps/backup-db.sh
 | `TRAINER_CORS_ORIGINS` | `https://python-simulator.ai-smirnov.ru` |
 | `TRAINER_AI_ENABLED` | `false` |
 | `TRAINER_OPENAI_API_KEY` | — (ключ OpenRouter) |
-| `TRAINER_AI_MODEL` | `meta-llama/llama-3.3-70b-instruct:free` |
+| `TRAINER_AI_MODEL` | `openrouter/free` |
+| `TRAINER_AI_FALLBACK_MODELS` | `google/gemma-3-12b-it:free,...` (см. config) |
 | `TRAINER_AI_BASE_URL` | `https://openrouter.ai/api/v1` |
 | `TRAINER_AI_HTTP_REFERER` | `https://python-simulator.ai-smirnov.ru` |
 | `TRAINER_AI_APP_TITLE` | `Python Refresh Trainer` |
@@ -180,20 +181,20 @@ chmod +x deploy/vps/backup-db.sh
 TRAINER_AI_ENABLED=true
 TRAINER_OPENAI_API_KEY=sk-or-v1-ВАШ_КЛЮЧ
 TRAINER_AI_BASE_URL=https://openrouter.ai/api/v1
-TRAINER_AI_MODEL=meta-llama/llama-3.3-70b-instruct:free
+TRAINER_AI_MODEL=openrouter/free
 ```
 
 4. Перезапуск: `./deploy/vps/update.sh`
 
-**Рекомендуемая модель:** `meta-llama/llama-3.3-70b-instruct:free` — нормально объясняет ошибки по-русски, бесплатный tier.
+**Рекомендуемая модель:** `openrouter/free` — OpenRouter сам выбирает доступную free-модель; при 429 backend пробует fallback-цепочку.
 
-**Альтернативы:**
+**Альтернативы (основная модель):**
 
 | Модель | Когда |
 |--------|-------|
-| `google/gemma-3-12b-it:free` | быстрее, чуть проще |
-| `openrouter/free` | авто-выбор любой free-модели |
+| `meta-llama/llama-3.3-70b-instruct:free` | лучше качество, но часто 429 |
+| `google/gemma-3-12b-it:free` | быстрее, стабильнее |
 
-**Лимиты OpenRouter (free):** 50 запросов/день без пополнения, 20/мин. После $10 credits — 1000/день. Для личного тренажёра хватает.
+**Лимиты OpenRouter (free):** 50 запросов/день без пополнения, 20/мин. Отдельные модели могут быть rate-limited у провайдера — тогда сработает fallback или сообщение «подождите минуту».
 
 Проверка: `GET /api/ai/status` → `"configured": true` после деплоя с ключом.
